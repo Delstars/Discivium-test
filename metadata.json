@@ -1,0 +1,6 @@
+{
+  "name": "Discivium",
+  "description": "Unified university academic success, coursework workflow, student finance, and Lifelong Scholar Passport platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

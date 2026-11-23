@@ -1,0 +1,327 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1 / Safety Net: Default Deny Everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        request.auth.token.email == 'delbridoks@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Validation Helpers (Anti-Update-Gap)
+    function isValidUserPublicProfile(data, userId) {
+      return data.uid is string
+        && data.uid == userId
+        && isValidId(data.uid)
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 100
+        && data.role is string
+        && data.role in ['student', 'lecturer', 'admin', 'advisor']
+        && data.scholarOsId is string
+        && data.scholarOsId.size() >= 4
+        && data.scholarOsId.size() <= 40
+        && data.scholarOsId.matches('^[a-zA-Z0-9_\\-]+$')
+        && (!('department' in data) || (data.department is string && data.department.size() <= 100))
+        && (!('theme' in data) || (data.theme is string && data.theme.size() <= 32))
+        && (!('fontScale' in data) || (data.fontScale is string && data.fontScale in ['small', 'default', 'large', 'xl']))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data, userId) {
+      return data.uid is string
+        && data.uid == userId
+        && isValidId(data.uid)
+        && data.email is string
+        && data.email.size() >= 3
+        && data.email.size() <= 180
+        && (!('emergencyContact' in data) || (data.emergencyContact is string && data.emergencyContact.size() <= 160))
+        && (!('medicalNotes' in data) || (data.medicalNotes is string && data.medicalNotes.size() <= 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidNotification(data, userId) {
+      return data.uid is string
+        && data.uid == userId
+        && isValidId(data.uid)
+        && data.title is string
+        && data.title.size() >= 1
+        && data.title.size() <= 160
+        && data.body is string
+        && data.body.size() >= 1
+        && data.body.size() <= 600
+        && data.category is string
+        && data.category in ['deadline', 'grade', 'service', 'finance', 'system']
+        && data.read is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidScholarPassport(data, scholarOsId) {
+      return data.scholarOsId is string
+        && data.scholarOsId == scholarOsId
+        && isValidId(data.scholarOsId)
+        && data.ownerUid is string
+        && isValidId(data.ownerUid)
+        && data.holderName is string
+        && data.holderName.size() >= 1
+        && data.holderName.size() <= 120
+        && data.institution is string
+        && data.institution.size() >= 1
+        && data.institution.size() <= 160
+        && (!('degreeTrack' in data) || (data.degreeTrack is string && data.degreeTrack.size() <= 160))
+        && data.shareWithEmployers is bool
+        && data.shareWithUniversities is bool
+        && (!('shareGpa' in data) || data.shareGpa is bool)
+        && (!('personalStatement' in data) || (data.personalStatement is string && data.personalStatement.size() <= 4000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPassportDispute(data) {
+      return data.ownerUid is string
+        && isValidId(data.ownerUid)
+        && data.courseCode is string
+        && data.courseCode.size() >= 2
+        && data.courseCode.size() <= 24
+        && data.reason is string
+        && data.reason.size() >= 5
+        && data.reason.size() <= 1000
+        && data.status is string
+        && data.status in ['open', 'resolved', 'rejected']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidInstitutionConfig(data) {
+      return data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 160
+        && data.aiEnabled is bool
+        && (!('formsIntegrationEnabled' in data) || data.formsIntegrationEnabled is bool)
+        && (!('chatIntegrationEnabled' in data) || data.chatIntegrationEnabled is bool)
+        && data.updatedByUid is string
+        && isValidId(data.updatedByUid)
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAuditLog(data) {
+      return data.actorUid is string
+        && isValidId(data.actorUid)
+        && data.action is string
+        && data.action.size() >= 1
+        && data.action.size() <= 120
+        && data.target is string
+        && data.target.size() >= 1
+        && data.target.size() <= 160
+        && data.createdAt is timestamp;
+    }
+
+    // Admin registry (read-only from client)
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list, write: if false;
+    }
+
+    // Users public profile (non-PII)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isVerified()
+        && isOwner(userId)
+        && incoming().keys().hasAll(['uid', 'displayName', 'role', 'scholarOsId', 'createdAt', 'updatedAt'])
+        && incoming().keys().hasOnly(['uid', 'displayName', 'role', 'scholarOsId', 'department', 'theme', 'fontScale', 'createdAt', 'updatedAt'])
+        && incoming().role == 'student'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isValidUserPublicProfile(incoming(), userId);
+      allow update: if isValidId(userId)
+        && isVerified()
+        && isValidUserPublicProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().scholarOsId == existing().scholarOsId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isOwner(userId)
+            && incoming().role == existing().role
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'department', 'theme', 'fontScale', 'updatedAt']))
+          || (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'role', 'department', 'theme', 'fontScale', 'updatedAt']))
+        );
+      allow delete: if false;
+
+      // Split PII subcollection
+      match /private/{docId} {
+        allow get: if isValidId(userId) && isValidId(docId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) && resource.data.uid == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(docId)
+          && isVerified()
+          && isOwner(userId)
+          && incoming().keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt'])
+          && incoming().keys().hasOnly(['uid', 'email', 'emergencyContact', 'medicalNotes', 'createdAt', 'updatedAt'])
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isValidUserPrivateInfo(incoming(), userId);
+        allow update: if isValidId(userId)
+          && isValidId(docId)
+          && isVerified()
+          && isOwner(userId)
+          && isValidUserPrivateInfo(incoming(), userId)
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'emergencyContact', 'medicalNotes', 'updatedAt']);
+        allow delete: if false;
+      }
+
+      // User notifications
+      match /notifications/{notificationId} {
+        allow get: if isValidId(userId) && isValidId(notificationId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) && resource.data.uid == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(notificationId)
+          && isVerified()
+          && isOwner(userId)
+          && incoming().keys().hasAll(['uid', 'title', 'body', 'category', 'read', 'createdAt', 'updatedAt'])
+          && incoming().keys().hasOnly(['uid', 'title', 'body', 'category', 'read', 'createdAt', 'updatedAt'])
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isValidNotification(incoming(), userId);
+        allow update: if isValidId(userId)
+          && isValidId(notificationId)
+          && isVerified()
+          && isOwner(userId)
+          && isValidNotification(incoming(), userId)
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt']);
+        allow delete: if isValidId(userId) && isValidId(notificationId) && isOwner(userId);
+      }
+    }
+
+    // Lifelong Scholar Passport
+    match /passports/{scholarOsId} {
+      allow get: if isValidId(scholarOsId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isValidId(scholarOsId)
+        && isVerified()
+        && incoming().ownerUid == request.auth.uid
+        && incoming().keys().hasAll(['scholarOsId', 'ownerUid', 'holderName', 'institution', 'shareWithEmployers', 'shareWithUniversities', 'createdAt', 'updatedAt'])
+        && incoming().keys().hasOnly(['scholarOsId', 'ownerUid', 'holderName', 'institution', 'degreeTrack', 'shareWithEmployers', 'shareWithUniversities', 'shareGpa', 'personalStatement', 'createdAt', 'updatedAt'])
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isValidScholarPassport(incoming(), scholarOsId);
+      allow update: if isValidId(scholarOsId)
+        && isVerified()
+        && isValidScholarPassport(incoming(), scholarOsId)
+        && incoming().scholarOsId == existing().scholarOsId
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().ownerUid == request.auth.uid || isAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['shareWithEmployers', 'shareWithUniversities', 'shareGpa', 'personalStatement', 'degreeTrack', 'updatedAt']);
+      allow delete: if false;
+
+      match /disputes/{disputeId} {
+        allow get: if isValidId(scholarOsId)
+          && isValidId(disputeId)
+          && isSignedIn()
+          && (
+            get(/databases/$(database)/documents/passports/$(scholarOsId)).data.ownerUid == request.auth.uid
+            || isAdmin()
+          );
+        allow list: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+        allow create: if isValidId(scholarOsId)
+          && isValidId(disputeId)
+          && isVerified()
+          && exists(/databases/$(database)/documents/passports/$(scholarOsId))
+          && get(/databases/$(database)/documents/passports/$(scholarOsId)).data.ownerUid == request.auth.uid
+          && incoming().ownerUid == request.auth.uid
+          && incoming().status == 'open'
+          && incoming().keys().hasAll(['ownerUid', 'courseCode', 'reason', 'status', 'createdAt', 'updatedAt'])
+          && incoming().keys().hasOnly(['ownerUid', 'courseCode', 'reason', 'status', 'createdAt', 'updatedAt'])
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isValidPassportDispute(incoming());
+        allow update: if isValidId(scholarOsId)
+          && isValidId(disputeId)
+          && isAdmin()
+          && existing().status == 'open'
+          && isValidPassportDispute(incoming())
+          && incoming().ownerUid == existing().ownerUid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+        allow delete: if false;
+      }
+    }
+
+    // Institutional Configuration
+    match /institutions/{institutionId} {
+      allow get: if isValidId(institutionId) && isSignedIn();
+      allow list: if false;
+      allow create: if isValidId(institutionId)
+        && isAdmin()
+        && incoming().updatedByUid == request.auth.uid
+        && incoming().keys().hasAll(['name', 'aiEnabled', 'updatedByUid', 'updatedAt'])
+        && incoming().keys().hasOnly(['name', 'aiEnabled', 'formsIntegrationEnabled', 'chatIntegrationEnabled', 'updatedByUid', 'updatedAt'])
+        && incoming().updatedAt == request.time
+        && isValidInstitutionConfig(incoming());
+      allow update: if isValidId(institutionId)
+        && isAdmin()
+        && isValidInstitutionConfig(incoming())
+        && incoming().updatedByUid == request.auth.uid
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'aiEnabled', 'formsIntegrationEnabled', 'chatIntegrationEnabled', 'updatedByUid', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // Immutable Audit Logs
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isAdmin() && resource.data.actorUid is string;
+      allow create: if isValidId(logId)
+        && isVerified()
+        && incoming().actorUid == request.auth.uid
+        && incoming().keys().hasAll(['actorUid', 'action', 'target', 'createdAt'])
+        && incoming().keys().hasOnly(['actorUid', 'action', 'target', 'createdAt'])
+        && incoming().createdAt == request.time
+        && isValidAuditLog(incoming());
+      allow update, delete: if false;
+    }
+  }
+}
