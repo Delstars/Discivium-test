@@ -70,12 +70,34 @@ class LearningRepository:
         return db.execute("INSERT INTO submissions(assignment_id,student_id,filename,submitted_at,late,status) VALUES (?,?,?,?,?,'submitted')",
                           (aid,user_id,filename,stamp,int(late))).lastrowid
 
+    def create_assignment(self,db,course_id,title,description,due,max_points,policy):
+        return db.execute("INSERT INTO assignments(course_id,title,description,due_at,max_points,policy) VALUES (?,?,?,?,?,?)",
+                          (course_id,title,description,due,max_points,policy)).lastrowid
+    def course_closed(self,db,course_id):
+        return db.execute("SELECT 1 FROM course_results WHERE course_id=?",(course_id,)).fetchone() is not None
+    def recipients(self,db,course_id):
+        return [r['student_id'] for r in db.execute("SELECT student_id FROM enrollments WHERE course_id=?",(course_id,))]
+    def exists(self,db,assignment_id,student_id):
+        return db.execute("SELECT 1 FROM submissions WHERE assignment_id=? AND student_id=?",(assignment_id,student_id)).fetchone() is not None
+    def save_feedback(self,db,submission_id,lecturer_id,score,comment):
+        db.execute("INSERT INTO feedback VALUES (?,?,?,?,?)",(submission_id,lecturer_id,score,comment,now()))
+        db.execute("UPDATE submissions SET status='graded' WHERE id=?",(submission_id,))
+    def assignments(self,db,course_id):
+        return db.execute("SELECT * FROM assignments WHERE course_id=? ORDER BY id DESC",(course_id,)).fetchall()
+    def submissions(self,db,assignment_id,student_id=None):
+        query="SELECT s.*,u.name,f.score,f.comment FROM submissions s JOIN users u ON u.id=s.student_id LEFT JOIN feedback f ON f.submission_id=s.id WHERE s.assignment_id=?"
+        if student_id is not None:
+            return db.execute(query+" AND s.student_id=?",(assignment_id,student_id)).fetchall()
+        return db.execute(query,(assignment_id,)).fetchall()
+
 class LearningFacade:
     def __init__(self, courses, repository, storage, events):
         self.courses,self.repo,self.storage,self.events=courses,repository,storage,events
         self.policies={'strict':StrictDeadlinePolicy(),'allow_late':AllowLatePolicy()}
     def publish_assignment(self, db, user, course_id, title, description, due_at, max_points, policy):
         self.courses.require_lecturer(db,user,course_id)
+        if self.repo.course_closed(db,course_id):
+            raise DomainError('Course results already released; coursework is closed',409)
         try:
             due=datetime.fromisoformat(due_at)
             if due.tzinfo is None: raise ValueError()
@@ -83,9 +105,8 @@ class LearningFacade:
         except (ValueError,TypeError): raise DomainError('Enter a valid deadline with timezone')
         if not title.strip() or len(title)>200 or not description.strip() or not 1<=max_points<=1000 or policy not in self.policies:
             raise DomainError('Invalid assignment fields')
-        aid=db.execute("INSERT INTO assignments(course_id,title,description,due_at,max_points,policy) VALUES (?,?,?,?,?,?)",
-                       (course_id,title.strip(),description.strip(),due,max_points,policy)).lastrowid
-        recipients=[r['student_id'] for r in db.execute("SELECT student_id FROM enrollments WHERE course_id=?",(course_id,))]
+        aid=self.repo.create_assignment(db,course_id,title.strip(),description.strip(),due,max_points,policy)
+        recipients=self.repo.recipients(db,course_id)
         self.events.publish(db,dict(actor=user.id,action='published',entity=aid,recipients=recipients,message='New assignment: '+title))
         return aid
     def submit(self, db, user, assignment_id, filename, content, at=None):
@@ -94,7 +115,7 @@ class LearningFacade:
         validate_file(filename,content)
         at=at or datetime.now(timezone.utc)
         late=self.policies[assignment['policy']].evaluate(datetime.fromisoformat(assignment['due_at']),at)
-        if db.execute("SELECT 1 FROM submissions WHERE assignment_id=? AND student_id=?",(assignment_id,user.id)).fetchone():
+        if self.repo.exists(db,assignment_id,user.id):
             raise DomainError('This assignment has already been submitted',409)
         sid=self.repo.create_submission(db,assignment_id,user.id,filename,at.isoformat(),late)
         self.storage.save(db,sid,content)
@@ -106,8 +127,7 @@ class LearningFacade:
         self.courses.require_lecturer(db,user,sub['course_id'])
         if sub['status']!='submitted': raise DomainError('Submission already graded',409)
         if not 0<=score<=sub['max_points'] or not comment.strip(): raise DomainError('Invalid score or missing feedback')
-        db.execute("INSERT INTO feedback VALUES (?,?,?,?,?)",(submission_id,user.id,score,comment.strip(),now()))
-        db.execute("UPDATE submissions SET status='graded' WHERE id=?",(submission_id,))
+        self.repo.save_feedback(db,submission_id,user.id,score,comment.strip())
         self.events.publish(db,dict(actor=user.id,action='graded',entity=submission_id,recipients=[sub['student_id']],message='Feedback released'))
     def download(self, db, user, submission_id):
         sub=self.repo.submission(db,submission_id)
@@ -118,12 +138,11 @@ class LearningFacade:
     def assignments(self, db, user, course_id):
         if user.role=='student': self.courses.require_student(db,user,course_id)
         else: self.courses.require_lecturer(db,user,course_id)
-        return db.execute("SELECT * FROM assignments WHERE course_id=? ORDER BY id DESC",(course_id,)).fetchall()
+        return self.repo.assignments(db,course_id)
     def submissions(self, db, user, assignment_id):
         assignment=self.repo.assignment(db,assignment_id)
-        query="SELECT s.*,u.name,f.score,f.comment FROM submissions s JOIN users u ON u.id=s.student_id LEFT JOIN feedback f ON f.submission_id=s.id WHERE s.assignment_id=?"
         if user.role=='student':
             self.courses.require_student(db,user,assignment['course_id'])
-            return db.execute(query+" AND s.student_id=?",(assignment_id,user.id)).fetchall()
+            return self.repo.submissions(db,assignment_id,user.id)
         self.courses.require_lecturer(db,user,assignment['course_id'])
-        return db.execute(query,(assignment_id,)).fetchall()
+        return self.repo.submissions(db,assignment_id)

@@ -6,18 +6,21 @@ from email.policy import default
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, urlsplit, quote
 from pathlib import Path
-import argparse, os, secrets
+import argparse, os, secrets, json, mimetypes
 from .db import Database
 from .identity import IdentityService, DomainError
 from .courses import CourseService
 from .learning import LearningFacade, LearningRepository, SQLiteFileAdapter, EventBus, AuditObserver, NotificationObserver, MAX_FILE
 from . import views
+from .api import CampusAPI
 
 def make_server(path, port=8000):
     database=Database(path); database.initialize()
     identity=IdentityService(); courses=CourseService()
     events=EventBus(); events.subscribe(AuditObserver()); events.subscribe(NotificationObserver())
     learning=LearningFacade(courses,LearningRepository(),SQLiteFileAdapter(),events)
+    campus=CampusAPI(courses,learning,events)
+    ui_root=Path(__file__).resolve().parent.parent/'ui'/'dist'
     class Handler(BaseHTTPRequestHandler):
         def send(self, status, body, kind='text/html; charset=utf-8', headers=None):
             if isinstance(body,str): body=body.encode()
@@ -30,6 +33,22 @@ def make_server(path, port=8000):
             self.send_header('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
             for k,v in (headers or {}).items(): self.send_header(k,v)
             self.end_headers(); self.wfile.write(body)
+        def send_json(self,status,data,cookie=None):
+            return self.send(status,json.dumps(data), 'application/json; charset=utf-8', {'Set-Cookie':cookie} if cookie else None)
+        def send_asset(self,route):
+            relative=route.path.removeprefix('/ui/')
+            candidate=(ui_root/(relative or 'index.html')).resolve()
+            if not candidate.is_relative_to(ui_root.resolve()) or not candidate.is_file():
+                raise DomainError('UI build not found',404)
+            kind=mimetypes.guess_type(candidate)[0] or 'application/octet-stream'
+            # Dedicated CSP for the separately built same-origin SPA.
+            content=candidate.read_bytes()
+            self.send_response(200)
+            self.send_header('Content-Type',kind)
+            self.send_header('Content-Length',str(len(content)))
+            self.send_header('X-Content-Type-Options','nosniff')
+            self.send_header('Content-Security-Policy',"default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+            self.end_headers();self.wfile.write(content)
         def redirect(self, cookie=None):
             headers={'Location':'/'}
             if cookie: headers['Set-Cookie']=cookie
@@ -39,6 +58,11 @@ def make_server(path, port=8000):
             if not 0<=size<=MAX_FILE+65536: raise DomainError('Request too large',413)
             raw=self.rfile.read(size)
             content_type=self.headers.get('Content-Type','')
+            if content_type.startswith('application/json'):
+                if size>1024*1024: raise DomainError('JSON request too large',413)
+                data=json.loads(raw)
+                if not isinstance(data,dict): raise DomainError('Expected JSON object')
+                return data
             if content_type.startswith('multipart/form-data'):
                 msg=BytesParser(policy=default).parsebytes(('Content-Type: '+content_type+'\r\nMIME-Version: 1.0\r\n\r\n').encode()+raw)
                 result={}
@@ -61,44 +85,55 @@ def make_server(path, port=8000):
                 with closing(database.connect()) as db:
                     user,csrf=identity.resolve(db,self.token())
                     route=urlsplit(self.path)
+                    is_api=route.path.startswith('/api/')
+                    if not post and route.path.startswith('/ui/'):
+                        return self.send_asset(route)
+                    if not post and route.path=='/api/session':
+                        return self.send_json(200,dict(authenticated=bool(user),user=dict(id=user.id,username=user.username,name=user.name,role=user.role) if user else None,csrf=csrf))
+                    if not post and route.path=='/api/state':
+                        if not user:raise DomainError('Log in first',401)
+                        return self.send_json(200,campus.snapshot(db,user,csrf))
                     if post:
                         form=self.form()
-                        if route.path=='/login':
+                        if route.path in ('/login','/api/login'):
                             # Reject cross-origin browser login requests; localhost demo only.
                             origin=self.headers.get('Origin')
                             if origin and origin != 'http://'+self.headers.get('Host',''): raise DomainError('Invalid origin',403)
                             token=identity.authenticate(db,form.get('username',''),form.get('password',''))
-                            return self.redirect('session='+token+'; HttpOnly; SameSite=Strict; Path=/; Max-Age=3600')
+                            cookie='session='+token+'; HttpOnly; SameSite=Strict; Path=/; Max-Age=3600'
+                            return self.send_json(200,dict(ok=True),cookie) if is_api else self.redirect(cookie)
                         if not user: raise DomainError('Log in first',401)
-                        if not secrets.compare_digest(form.get('csrf',''),csrf): raise DomainError('Invalid CSRF token',403)
-                        if route.path=='/logout':
+                        supplied=self.headers.get('X-CSRF-Token') or form.get('csrf','')
+                        if not isinstance(supplied,str) or not secrets.compare_digest(supplied,csrf): raise DomainError('Invalid CSRF token',403)
+                        if route.path in ('/logout','/api/logout'):
                             identity.logout(self.token())
-                            return self.redirect('session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
+                            cookie='session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'
+                            return self.send_json(200,dict(ok=True),cookie) if is_api else self.redirect(cookie)
                         with db:
                             db.execute('BEGIN IMMEDIATE')
-                            if route.path=='/publish':
-                                learning.publish_assignment(db,user,int(form['course_id']),form['title'],form['description'],form['due_at']+'+04:00',int(form['max_points']),form['policy'])
-                            elif route.path=='/submit':
-                                filename,content=form['file']
-                                learning.submit(db,user,int(form['assignment_id']),filename,content)
-                            elif route.path=='/grade':
-                                learning.grade(db,user,int(form['submission_id']),int(form['score']),form['comment'])
-                            elif route.path=='/enroll':
-                                courses.enroll(db,user,int(form['course_id']),int(form['student_id']))
-                            else: raise DomainError('Page not found',404)
-                        return self.redirect()
-                    if route.path=='/download':
+                            action=route.path.removeprefix('/api/actions/') if route.path.startswith('/api/actions/') else route.path.removeprefix('/')
+                            campus.command(db,user,action,form)
+                        return self.send_json(200,dict(ok=True)) if is_api else self.redirect()
+                    if route.path in ('/download','/api/download'):
                         if not user: raise DomainError('Log in first',401)
                         sid=int(parse_qs(route.query)['id'][0])
                         filename,content=learning.download(db,user,sid)
                         return self.send(200,content,'application/octet-stream',{'Content-Disposition':"attachment; filename*=UTF-8''"+quote(filename,safe='')})
+                    if route.path=='/campus':
+                        if not user: raise DomainError('Log in first',401)
+                        return self.send(200,views.campus_dashboard(campus.snapshot(db,user,csrf)))
                     if route.path!='/': raise DomainError('Page not found',404)
                     return self.send(200,views.dashboard(db,user,csrf,courses,learning) if user else views.login())
-            except DomainError as e: self.send(e.status,views.error(str(e)))
-            except (ValueError,KeyError,TypeError,UnicodeError): self.send(400,views.error('Invalid or missing request fields'))
+            except DomainError as e:
+                if self.path.startswith('/api/'): self.send_json(e.status,dict(error=str(e)))
+                else:self.send(e.status,views.error(str(e)))
+            except (ValueError,KeyError,TypeError,UnicodeError,AttributeError):
+                if self.path.startswith('/api/'):self.send_json(400,dict(error='Invalid or missing request fields'))
+                else:self.send(400,views.error('Invalid or missing request fields'))
             except Exception:
                 import traceback; traceback.print_exc()
-                self.send(500,views.error('Unexpected error. No successful transaction was reported.'))
+                if self.path.startswith('/api/'):self.send_json(500,dict(error='Unexpected error'))
+                else:self.send(500,views.error('Unexpected error. No successful transaction was reported.'))
     return HTTPServer(('127.0.0.1',port),Handler)
 
 if __name__=='__main__':

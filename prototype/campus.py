@@ -39,25 +39,31 @@ class RegistrationService:
            WHERE o.semester='Fall 2026' ORDER BY c.code""")
     def register(self,db,user,cid):
         role(user,'student')
+        return self.allocate(db,user,user.id,cid)
+    def admin_enroll(self,db,user,cid,sid):
+        role(user,'admin')
+        one(db,"SELECT id FROM users WHERE id=? AND role='student'",(sid,))
+        return self.allocate(db,user,sid,cid)
+    def allocate(self,db,user,sid,cid):
         o=one(db,"SELECT * FROM offerings WHERE course_id=? AND semester='Fall 2026'",(cid,))
-        if db.execute("SELECT 1 FROM enrollments WHERE course_id=? AND student_id=?",(cid,user.id)).fetchone():
+        if db.execute("SELECT 1 FROM enrollments WHERE course_id=? AND student_id=?",(cid,sid)).fetchone():
             raise DomainError('Already enrolled',409)
-        if db.execute("SELECT 1 FROM course_results WHERE course_id=? AND student_id=? AND percentage>=60",(cid,user.id)).fetchone():
+        if db.execute("SELECT 1 FROM course_results WHERE course_id=? AND student_id=? AND percentage>=60",(cid,sid)).fetchone():
             raise DomainError('Course already passed',409)
         if db.execute("SELECT COUNT(*) FROM enrollments WHERE course_id=?",(cid,)).fetchone()[0]>=o['capacity']:
             raise DomainError('No available seats',409)
         missing=db.execute("""SELECT 1 FROM prerequisites p WHERE p.course_id=? AND NOT EXISTS
-            (SELECT 1 FROM course_results r WHERE r.course_id=p.required_course_id AND r.student_id=? AND r.percentage>=60)""",(cid,user.id)).fetchone()
+            (SELECT 1 FROM course_results r WHERE r.course_id=p.required_course_id AND r.student_id=? AND r.percentage>=60)""",(cid,sid)).fetchone()
         if missing: raise DomainError('Prerequisite not completed',409)
         clash=db.execute("""SELECT 1 FROM enrollments e JOIN offerings x ON x.course_id=e.course_id
             WHERE e.student_id=? AND x.semester=? AND x.weekday=? AND x.start_min<? AND x.end_min>?""",
-            (user.id,o['semester'],o['weekday'],o['end_min'],o['start_min'])).fetchone()
+            (sid,o['semester'],o['weekday'],o['end_min'],o['start_min'])).fetchone()
         if clash: raise DomainError('Timetable conflict',409)
         credits=db.execute("""SELECT COALESCE(SUM(o.credits),0) FROM enrollments e JOIN offerings o ON o.course_id=e.course_id
-            WHERE e.student_id=? AND o.semester=?""",(user.id,o['semester'])).fetchone()[0]
+            WHERE e.student_id=? AND o.semester=?""",(sid,o['semester'])).fetchone()[0]
         if credits+o['credits']>18: raise DomainError('18-credit limit exceeded',409)
-        db.execute("INSERT INTO enrollments VALUES (?,?)",(cid,user.id))
-        event(self.bus,db,user,'registered',cid,[user.id],'Course registration confirmed')
+        db.execute("INSERT INTO enrollments VALUES (?,?)",(cid,sid))
+        event(self.bus,db,user,'registered',cid,[sid],'Course registration confirmed')
     def timetable(self,db,user):
         role(user,'student','lecturer')
         where="e.student_id=?" if user.role=='student' else "c.lecturer_id=?"
@@ -285,3 +291,9 @@ class GovernanceService:
         cid=db.execute("INSERT INTO courses(code,title,lecturer_id) VALUES (?,?,?)",(code,text(title,150),lecturer)).lastrowid
         db.execute("INSERT INTO offerings VALUES (?,?,?,?,?,?,?,'Fall 2026')",(cid,credits,capacity,day,start,end,text(room,30)))
         event(self.bus,db,user,'course_created',cid,[lecturer],'New course offering')
+    def assign_programme(self,db,user,sid,pid):
+        role(user,'admin')
+        one(db,"SELECT id FROM users WHERE id=? AND role='student'",(sid,))
+        one(db,"SELECT id FROM programmes WHERE id=?",(pid,))
+        db.execute("INSERT INTO student_programmes VALUES (?,?) ON CONFLICT(student_id) DO UPDATE SET programme_id=excluded.programme_id",(sid,pid))
+        event(self.bus,db,user,'programme_assigned',pid,[sid],'Academic programme assigned')
