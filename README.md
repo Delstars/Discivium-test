@@ -1,6 +1,6 @@
 # Discivium — BCS305 coursework prototype
 
-**Architecture rebuild branch.** A runnable local university management and coursework system, using fictional accounts. The original Google AI Studio React/Firebase/Express files are retained for comparison but are **not** part of the assessed runtime. AI is excluded from the active release. Do not run the legacy server for this demonstration.
+**Current implementation (main branch).** A runnable local university management and coursework system, using fictional accounts. The original Google AI Studio React/Firebase/Express implementation is archived on the `legacy-ai-studio-backup` branch and removed from the active source tree. AI is excluded from the active release.
 
 ## Run (Python 3.11+; no third-party packages)
 
@@ -42,6 +42,6 @@ Tests cover service rules and a full HTTP workflow with a temporary database. Do
 
 Layered modular monolith: browser / presentation, Identity, Courses, Learning, data access and SQLite. Files are stored as BLOBs atomically with submissions. Four patterns: Facade, Strategy, Adapter, Observer. See [project design and report draft](docs/REPORT.md), [diagram sources](docs/uml), and [decision records](docs/ADR.md).
 
-Local loopback only: Python HTTPServer is not production-grade; sessions are in memory, credentials are fictional, basic file signature validation is not malware scanning, no TLS or university integration. Expanded campus workflows include registration, attendance, released results and GPA, fictional CSV export, simulated finance, requests, advisor consent, course resources, discussion/polls, programme and account management. No AI, official transcripts, real financial processing, cloud integration or production deployment. The legacy UI is not a working production alternative. The new premium frontend is pending design and integration.
+Local loopback only: Python HTTPServer is not production-grade; sessions are in memory, credentials are fictional, basic file signature validation is not malware scanning, no TLS or university integration. Expanded campus workflows include registration, attendance, released results and GPA, fictional CSV export, simulated finance, requests, advisor consent, course resources, discussion/polls, programme and account management. No AI, official transcripts, real financial processing, cloud integration or production deployment. The archived legacy UI is not a working production alternative. The new premium frontend is pending design and integration.
 
 AI assistance: ChatGPT generated the rebuild and draft documentation from the course materials and existing repository; team must review, run tests and record actual contributions and modifications before submission. No real student data or secrets in this repository.

@@ -1,6 +1,6 @@
 # Discivium frontend integration contract
 
-**Canonical backend:** architecture-rebuild branch, Python 3.11+, run `python -m prototype.app` from repository root. No AI, Firebase, Supabase, Google OAuth, Google Workspace, external APIs or separate databases. The old root React/Express project is preserved but not the assessed runtime.
+**Canonical backend:** main branch, Python 3.11+, run `python -m prototype.app` from repository root. No AI, Firebase, Supabase, Google OAuth, Google Workspace, external APIs or separate databases. The old root React/Express project is archived on `legacy-ai-studio-backup` and is not part of the current tree.
 
 ## Integration rules
 

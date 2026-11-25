@@ -4,7 +4,7 @@ Draft for team verification • Fall 2026 • Canadian University Dubai
 
 **Team:** [insert registered team number and names]  
 **Instructor:** Dr. Khaled Ammar  
-**Repository:** https://github.com/Delstars/Discivium-test/tree/architecture-rebuild
+**Repository:** https://github.com/Delstars/Discivium-test
 
 This report describes the local coursework implementation on the architecture-rebuild branch. It is not a claim that the full university platform is complete or that every proposed quality target has been measured. Replace bracketed fields with verified team information before submitting.
 
@@ -129,7 +129,7 @@ Factory Method and Singleton were not forced into the solution: no complex creat
 
 ## 8. Prototype and verification
 
-Run from repository root: python -m prototype.app. Open http://127.0.0.1:8000. All fictional accounts use DemoOnly!2026; see README for roles and exact demo. The legacy AI Studio application is retained but excluded from this runtime. Standard-library Python was selected over the previously proposed Django/SQLite and AI Studio React/Express/Firebase setup because it requires no package installation or cloud credentials for the demonstration. This trades away framework security and production features; HTTPServer is loopback-only, not production-grade.
+Run from repository root: python -m prototype.app. Open http://127.0.0.1:8000. All fictional accounts use DemoOnly!2026; see README for roles and exact demo. The legacy AI Studio application is archived on legacy-ai-studio-backup and excluded from this runtime. Standard-library Python was selected over the previously proposed Django/SQLite and AI Studio React/Express/Firebase setup because it requires no package installation or cloud credentials for the demonstration. This trades away framework security and production features; HTTPServer is loopback-only, not production-grade.
 
 Actual document bytes are stored in the SQLite file, linked to the submission. SQLite transactions cover the write operations and observers. Basic PDF/DOCX signature validation is not malware scanning. Shared demo password, HTTP, in-memory sessions, single server and no rate limiting are prototype limitations; do not use real accounts or publish the server.
 

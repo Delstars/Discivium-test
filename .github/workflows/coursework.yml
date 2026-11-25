@@ -1,7 +1,7 @@
 name: Coursework verification
 on:
   push:
-    branches: [architecture-rebuild]
+    branches: [main, architecture-rebuild, ui-redesign]
   workflow_dispatch:
 permissions:
   contents: read
