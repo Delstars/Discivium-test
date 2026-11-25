@@ -6,7 +6,7 @@ Draft for team verification • Fall 2026 • Canadian University Dubai
 **Instructor:** Dr. Khaled Ammar  
 **Repository:** https://github.com/Delstars/Discivium-test/tree/architecture-rebuild
 
-This report describes the local coursework implementation on the architecture-rebuild branch. It is not a claim that the full university platform is complete or that all tests have passed. Replace bracketed fields with verified team information before submitting.
+This report describes the local coursework implementation on the architecture-rebuild branch. It is not a claim that the full university platform is complete or that every proposed quality target has been measured. Replace bracketed fields with verified team information before submitting.
 
 ## 1. Introduction and problem statement
 
@@ -143,7 +143,7 @@ Actual document bytes are stored in the SQLite file, linked to the submission. S
 | FR7 | EventBus / observers; workflow counts and rollback injection |
 | FR8 | CourseService.visible, LearningFacade read operations; HTTP and permission tests |
 
-Run python -m unittest prototype.tests -v. Record observed output here: [test run date, pass/fail and commit]. Performance scenario, restart timing, DOCX sample and team-machine rehearsal require manual verification. Test cases are not test results.
+Run python -m unittest prototype.tests -v. Record observed output here: 25 November 2026 — automated unittest step succeeded on commit fe36b97ce3ba4ca3484eaf509c43b314c48d657a, GitHub Actions run 45602361622. Individual log inspection was unavailable when this note was recorded; PDF export and team-machine rehearsal were not yet confirmed.. Performance scenario, restart timing, DOCX sample and team-machine rehearsal require manual verification. Test cases are not test results.
 
 ## 9. Reflection
 
