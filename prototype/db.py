@@ -55,6 +55,7 @@ class Database:
         from contextlib import closing
         with closing(self.connect()) as c, c:
             c.executescript(SCHEMA)
+            c.executescript(Path(__file__).with_name('campus_schema.sql').read_text(encoding='utf-8'))
             for uid, username, name, role in [
                 (1,'lecturer','Dr. Morgan','lecturer'), (2,'student','Alex Chen','student'),
                 (3,'other','Jordan Reed','student'), (4,'admin','Campus Administrator','admin'),
@@ -66,3 +67,5 @@ class Database:
             c.execute("INSERT OR IGNORE INTO courses VALUES (2,'BCS306','Database Systems',6)")
             c.execute("INSERT OR IGNORE INTO enrollments VALUES (1,2)")
             c.execute("INSERT OR IGNORE INTO enrollments VALUES (2,3)")
+            from .campus_seed import seed_campus
+            seed_campus(c)
