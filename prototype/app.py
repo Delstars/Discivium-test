@@ -49,8 +49,8 @@ def make_server(path, port=8000):
             self.send_header('X-Content-Type-Options','nosniff')
             self.send_header('Content-Security-Policy',"default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
             self.end_headers();self.wfile.write(content)
-        def redirect(self, cookie=None):
-            headers={'Location':'/'}
+        def redirect(self, cookie=None, location='/'):
+            headers={'Location':location}
             if cookie: headers['Set-Cookie']=cookie
             self.send(303,b'',headers=headers)
         def form(self):
@@ -113,7 +113,7 @@ def make_server(path, port=8000):
                             db.execute('BEGIN IMMEDIATE')
                             action=route.path.removeprefix('/api/actions/') if route.path.startswith('/api/actions/') else route.path.removeprefix('/')
                             campus.command(db,user,action,form)
-                        return self.send_json(200,dict(ok=True)) if is_api else self.redirect()
+                        return self.send_json(200,dict(ok=True)) if is_api else self.redirect(location='/campus' if urlsplit(self.headers.get('Referer','')).path=='/campus' else '/')
                     if route.path in ('/download','/api/download'):
                         if not user: raise DomainError('Log in first',401)
                         sid=int(parse_qs(route.query)['id'][0])
