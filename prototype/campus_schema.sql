@@ -50,3 +50,9 @@ CREATE TABLE IF NOT EXISTS programmes (
  id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, department TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS student_programmes (
  student_id INTEGER PRIMARY KEY REFERENCES users(id), programme_id INTEGER NOT NULL REFERENCES programmes(id));
+
+CREATE TABLE IF NOT EXISTS resources (
+ id INTEGER PRIMARY KEY, course_id INTEGER NOT NULL REFERENCES courses(id),
+ title TEXT NOT NULL, filename TEXT NOT NULL, content BLOB NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS notification_reads (
+ notification_id INTEGER PRIMARY KEY REFERENCES notifications(id), read_at TEXT NOT NULL);

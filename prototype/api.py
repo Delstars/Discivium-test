@@ -5,6 +5,9 @@ from .identity import DomainError
 from .campus import (rows,integer,RegistrationService,AcademicRecordsService,AttendanceService,FinanceService,
                      StudentServices,AdvisingService,WorkspaceService,GovernanceService,event,one)
 
+from .resources import ResourceService
+from .db import now
+
 class CampusAPI:
     def __init__(self,courses,learning,bus):
         self.courses,self.learning,self.bus=courses,learning,bus
@@ -16,9 +19,10 @@ class CampusAPI:
         self.advising=AdvisingService(self.records,self.attendance,bus)
         self.workspace=WorkspaceService(courses,bus)
         self.governance=GovernanceService(bus)
+        self.resources=ResourceService(courses,bus)
     def snapshot(self,db,user,csrf):
         state=dict(user=asdict(user),csrf=csrf,semester='Fall 2026',demo=True,
-             notifications=rows(db,"SELECT id,message,created_at FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 50",(user.id,)))
+             notifications=rows(db,"SELECT n.id,n.message,n.created_at,r.read_at FROM notifications n LEFT JOIN notification_reads r ON r.notification_id=n.id WHERE n.user_id=? ORDER BY n.id DESC LIMIT 50",(user.id,)))
         if user.role in ('student','lecturer'):
             state['courses']=[]
             for course in self.courses.visible(db,user):
@@ -28,6 +32,7 @@ class CampusAPI:
                     a=dict(assignment);a['submissions']=[dict(s) for s in self.learning.submissions(db,user,a['id'])]
                     item['assignments'].append(a)
                 item['workspace']=self.workspace.read(db,user,cid)
+                item['resources']=self.resources.list(db,user,cid)
                 if user.role=='lecturer':
                     item['roster']=self.attendance.roster(db,user,cid)
                     item['attendance_sessions']=self.attendance.sessions(db,user,cid)
@@ -82,5 +87,12 @@ class CampusAPI:
         elif name=='programme':self.governance.programme(db,user,s('name'),s('department'))
         elif name=='assign-advisor':self.governance.assign_advisor(db,user,n('student_id'),n('advisor_id'))
         elif name=='assign-programme':self.governance.assign_programme(db,user,n('student_id'),n('programme_id'))
+        elif name=='resource':
+            filename,content=f['file'];self.resources.create(db,user,n('course_id'),s('title'),filename,content)
+        elif name=='notification-read':
+            nid=n('notification_id')
+            if not db.execute("SELECT 1 FROM notifications WHERE id=? AND user_id=?",(nid,user.id)).fetchone():raise DomainError('Notification not owned by user',403)
+            db.execute("INSERT OR IGNORE INTO notification_reads VALUES (?,?)",(nid,now()))
+        elif name=='user':self.governance.create_user(db,user,s('username'),s('name'),s('role'),s('password'))
         elif name=='course':self.governance.create_course(db,user,s('code'),s('title'),n('lecturer_id'),n('credits',1,6),n('capacity',1,1000),n('weekday',0,6),n('start_min',0,1439),n('end_min',1,1440),s('room'))
         else:raise DomainError('Unknown action',404)

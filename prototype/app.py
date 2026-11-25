@@ -6,7 +6,7 @@ from email.policy import default
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs, urlsplit, quote
 from pathlib import Path
-import argparse, os, secrets, json, mimetypes
+import argparse, os, secrets, json, mimetypes, csv, io
 from .db import Database
 from .identity import IdentityService, DomainError
 from .courses import CourseService
@@ -114,6 +114,23 @@ def make_server(path, port=8000):
                             action=route.path.removeprefix('/api/actions/') if route.path.startswith('/api/actions/') else route.path.removeprefix('/')
                             campus.command(db,user,action,form)
                         return self.send_json(200,dict(ok=True)) if is_api else self.redirect(location='/campus' if urlsplit(self.headers.get('Referer','')).path=='/campus' else '/')
+                    if route.path=='/api/transcript':
+                        if not user:raise DomainError('Log in first',401)
+                        if user.role!='student':raise DomainError('Student record only',403)
+                        record=campus.records.record(db,user.id)
+                        output=io.StringIO();writer=csv.writer(output)
+                        writer.writerow(['Discivium fictional academic record — not an official transcript'])
+                        writer.writerow(['Course','Title','Percentage','Grade','Credits','Released at'])
+                        def csv_safe(value):
+                            s=str(value)
+                            return "'"+s if s.startswith(('=','+','-','@','\\t','\\r')) else s
+                        for r in record['results']:writer.writerow([csv_safe(r[k]) for k in ('code','title','percentage','letter','credits','released_at')])
+                        writer.writerow(['GPA',record['gpa']])
+                        return self.send(200,output.getvalue(),'text/csv; charset=utf-8',{'Content-Disposition':'attachment; filename="discivium-record.csv"'})
+                    if route.path in ('/resource-download','/api/resource-download'):
+                        if not user:raise DomainError('Log in first',401)
+                        rid=int(parse_qs(route.query)['id'][0]);filename,content=campus.resources.download(db,user,rid)
+                        return self.send(200,content,'application/octet-stream',{'Content-Disposition':"attachment; filename*=UTF-8''"+quote(filename,safe='')})
                     if route.path in ('/download','/api/download'):
                         if not user: raise DomainError('Log in first',401)
                         sid=int(parse_qs(route.query)['id'][0])

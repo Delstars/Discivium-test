@@ -86,7 +86,7 @@ def campus_dashboard(state):
             end()
             section('Academic record / Scholar Passport')
             record=state['record'];out.append(f'<p>GPA: <b>{e(record["gpa"])}</b> · Earned credits: {record["earned_credits"]} · Fictional academic record</p>')
-            table(['Course','Percentage','Grade','Credits'],[(r['code'],r['percentage'],r['letter'],r['credits']) for r in record['results']]);end()
+            table(['Course','Percentage','Grade','Credits'],[(r['code'],r['percentage'],r['letter'],r['credits']) for r in record['results']]);out.append('<a href="/api/transcript">Export fictional academic record (CSV)</a>');end()
             section('Attendance')
             out.append(f'<p>Attendance rate: {e(state["attendance"]["rate"] if state["attendance"]["rate"] is not None else "No marks yet")} (present and late count; excused excluded)</p>')
             table(['Course','Date','Session','Status'],[(r['code'],r['session_date'],r['title'],r['status']) for r in state['attendance']['items']]);end()
@@ -104,6 +104,11 @@ def campus_dashboard(state):
                     r=next((x for x in c['released_results'] if x['student_id']==student['id']),None)
                     if r:out.append(f'<p>{e(student["name"])} · Released: {r["percentage"]}%</p>')
                     else:action('release-result',{'course_id':c['id'],'student_id':student['id']},f'<p>{e(student["name"])}</p>',button='Release final course result')
+            out.append('<h3>Course resources</h3>')
+            for resource in c['resources']:
+                item(f'<a href="/resource-download?id={resource["id"]}">{e(resource["title"])}</a> · {e(resource["filename"])}')
+            if role=='lecturer':
+                out.append(form('resource',csrf,hidden('course_id',c['id'])+fields('Resource title','title')+'<label>Document<input type="file" name="file" accept=".pdf,.docx" required></label><button>Publish resource</button>',True))
             out.append('<h3>Course discussion</h3>')
             for m in c['workspace']['messages']:item(f'<b>{e(m["author_name"])}</b><p>{e(m["body"])}</p><small>{e(m["created_at"])}</small>')
             action('message',{'course_id':c['id']},fields('Message','body'),button='Post message')
@@ -170,8 +175,11 @@ def campus_dashboard(state):
         end()
         section('People directory and audit')
         table(['Name','Username','Role'],[(u['name'],u['username'],u['role']) for u in people])
+        action('user',{},fields('Username','username')+fields('Display name','name')+choice('Role','role',[(s,s.title()) for s in ('student','lecturer','advisor','admin')])+fields('Fictional password (10+ characters)','password','password'),button='Create demo user')
         table(['Time','Actor','Action','Entity'],[(a['created_at'],a['actor_name'],a['action'],a['entity_id']) for a in g['audit']]);end()
     section('Notifications')
-    for n in state['notifications']:item(e(n['message']))
+    for n in state['notifications']:
+        item(e(n['message'])+(' · Read' if n['read_at'] else ' · New'))
+        if not n['read_at']:action('notification-read',{'notification_id':n['id']},button='Mark read')
     end()
     return page('Campus dashboard',''.join(out))

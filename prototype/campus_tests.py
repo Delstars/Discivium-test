@@ -88,6 +88,19 @@ class CampusTests(unittest.TestCase):
         self.assertNotIn('governance',self.state(self.student))
         self.assertNotIn('finance',self.state(self.advisor))
         self.assertNotIn('password_hash',json.dumps(self.state(self.admin)))
+    def test_resource_and_notifications(self):
+        self.cmd(self.lecturer,'resource',course_id=1,title='Lecture',file=('lecture.pdf',b'%PDF-1.4'))
+        self.assertEqual(self.state(self.student)['courses'][0]['resources'][0]['title'],'Lecture')
+        with self.assertRaises(DomainError):self.api.resources.download(self.db,self.other,1)
+        self.assertEqual(self.api.resources.download(self.db,self.student,1)[1],b'%PDF-1.4')
+        nid=self.state(self.student)['notifications'][0]['id']
+        with self.assertRaises(DomainError):self.cmd(self.other,'notification-read',notification_id=nid)
+        self.cmd(self.student,'notification-read',notification_id=nid)
+        self.assertIsNotNone(self.state(self.student)['notifications'][0]['read_at'])
+    def test_create_demo_user(self):
+        self.cmd(self.admin,'user',username='new_student',name='Demo Person',role='student',password='DemoStudent!2026')
+        self.assertIn('new_student',[u['username'] for u in self.state(self.admin)['governance']['people']])
+        with self.assertRaises(DomainError):self.cmd(self.student,'user',username='blocked',name='No',role='admin',password='DemoStudent!2026')
     def test_http_json_and_fallback(self):
         srv=make_server(self.dbfile,0);thread=threading.Thread(target=srv.serve_forever,daemon=True);thread.start()
         def request(method,path,data=None,cookie='',csrf=''):
