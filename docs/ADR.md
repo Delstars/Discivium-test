@@ -1,0 +1,10 @@
+# Architecture decision records
+
+## ADR-001 — Layered modular monolith
+Context: four-role university vision, short course deadline, FR2–5 and reliability scenario, local demo. Decision: single Python process with explicit services and shared SQLite, in-process calls. Alternatives: independently deployed microservices; distributed event-driven services. Consequences: simpler setup and atomic writes, but one process and single-writer bottleneck; residual direct SQL weakens strict separation. Status: implemented for prototype, pending team review.
+
+## ADR-002 — Local dependency-free runtime and one authoritative store
+Context: legacy Google AI Studio implementation relied on Firebase, PostgreSQL, local state and metadata-only uploads. Decision: Python standard library HTTPServer on loopback and SQLite as sole persistent source of truth, documents as BLOBs. Alternatives: Django/SQLite as originally proposed; React/Express/PostgreSQL with separate object storage. Consequences: no package or cloud setup, real durable file bytes and transaction consistency; basic HTTPServer is not production-grade, BLOBs increase DB size, framework migration needed for deployment. Status: implemented, pending verification.
+
+## ADR-003 — Transactional synchronous observers and explicit policies
+Context: audit and notification must not disappear when a submission is committed; two different deadline rules. Decision: synchronous Observer inside the same transaction, plus Strategy for deadline policy, Facade for learning orchestration and Adapter for file bytes. Alternatives: asynchronous broker / outbox; direct calls; branching in facade. Consequences: simple atomicity, explicit variation and separation, but observer failure aborts the operation and abstractions add classes. A durable outbox would be preferable for remote notifications later. Status: implemented, pending team review.
