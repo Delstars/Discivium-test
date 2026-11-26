@@ -1,6 +1,6 @@
 # Expanded campus release — documentation handoff
 
-This is a scope update after the original coursework report. The earlier REPORT.md and fifteen original UML sources describe the tested coursework slice, not the complete expanded system. The report and expanded UML views are now revised; verify final PDF exports before submission. The report is still a draft; actual contribution statements, performance measurements, and visual inspection are outstanding.
+This is a scope update after the original coursework report. The original fifteen UML sources describe the tested coursework slice. The revised REPORT.md and ten additional campus UML views cover the expanded system; inspect the final exports and add verified team details before submission. The report is still a draft; actual contribution statements, performance measurements, and visual inspection are outstanding.
 
 ## Active modules and responsibilities
 

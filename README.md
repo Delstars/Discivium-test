@@ -36,7 +36,7 @@ Open http://127.0.0.1:8000/ui/ in a browser. The fallback HTML interface is avai
 ```sh
 python -m unittest prototype.tests prototype.campus_tests -v
 ```
-Tests cover service rules and a full HTTP workflow with a temporary database. Do not claim passing results until the command has been run. Reset the demo by stopping the app and deleting only `prototype/runtime/discivium.sqlite3` (destroys local demo data).
+Tests cover service rules and HTTP workflows using temporary databases. For frontend verification run `cd ui && npm ci && npm test && npm run build`. GitHub Actions also exercises live Chromium mutation workflows and `python -m prototype.benchmark` (local upload/restart scenarios). See [verified finalisation evidence](docs/VERIFICATION.md). Reset the demo by stopping the app and deleting only `prototype/runtime/discivium.sqlite3` (destroys local demo data).
 
 ## UI handoff
 

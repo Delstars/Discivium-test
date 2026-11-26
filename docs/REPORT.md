@@ -48,7 +48,7 @@ Implemented scope: authenticated student, lecturer, administrator and consent-co
 
 ### Quality attribute scenarios
 
-Targets below are proposed acceptance criteria, not measured results. Source, stimulus, artefact, environment, response and measure are explicit.
+The scenarios below specify acceptance criteria; observed local verification is recorded in section 8. Source, stimulus, artefact, environment, response and measure are explicit.
 
 | Attribute | Source and stimulus | Artefact and environment | Response and measure |
 |---|---|---|---|
@@ -102,7 +102,7 @@ Attendance session/mark, released result/GPA, issue and settle demo invoice, pub
 
 ### Model consistency
 
-Student and lecturer are external actors; Discivium is the system lane. SSDs show only external requests/responses, while the internal sequence exposes components. State-changing learning operations are publish, submit and grade; publish creates an assignment, submit creates Submitted and grade transitions to Graded. Reading and downloading are non-mutating. Graded is terminal; late is a flag rather than an independent state. Enrollment is a separate allocation record; request, invoice, poll and consent state models document the expanded modules. A late submission is a flag; a final result is immutable. Model vocabulary follows the code and database, not the legacy UI.
+Student and lecturer are external actors; Discivium is the system lane. SSDs show only external requests/responses, while the internal sequence exposes components. State-changing learning operations are publish, submit and grade; publish creates an assignment, submit creates Submitted and grade transitions to Graded. Reading and downloading are non-mutating. Graded is terminal; late is a flag rather than an independent state. Enrollment is a separate allocation record; request, invoice, poll and consent state models document the expanded modules. A final result is immutable. Model vocabulary follows the code and database, not the legacy UI.
 
 ## 5. Domain and structural models
 
@@ -171,9 +171,23 @@ Implemented workflows are listed in FR1–FR17. Real document bytes are saved as
 | FR16–17 | GovernanceService, CampusAPI; account, programme, privacy and notification tests |
 | React integration | Independent Node install, TypeScript/Vite build, seven formatter tests and live Chromium logins/navigation across four roles; screenshot artifacts |
 
-Verified evidence: 17 Python tests passed in GitHub Actions run 45622890329 on commit ff6d747f8e65a3310ccf13c8401f5c3136c85979. React integration run 45786330671 on the isolated verification branch for AI Studio commit 01f7d924950499946ee4b4e9f47b235ce68b7226 succeeded; browser screenshots are artifact 15100008126. These browser tests verify login/navigation, not every mutation. Subsequent finalisation changes must be checked against their own CI run. Performance target (20 uploads), restart timing, manual DOCX sample, actual team-machine rehearsal and signature verification are outstanding. No fabricated benchmark results.
+Verified evidence: 17 Python tests passed in GitHub Actions run 45622890329 on commit ff6d747f8e65a3310ccf13c8401f5c3136c85979. React integration run 45786330671 on the isolated verification branch for AI Studio commit 01f7d924950499946ee4b4e9f47b235ce68b7226 succeeded; browser screenshots are artifact 15100008126. These browser tests verify login/navigation, not every mutation. Finalisation CI run 45787922244 on commit 197760ee2ba75cea57d2984aa67e0c1672431e9c passed 17 Python and 10 frontend tests, TypeScript/Vite build, four-role browser login/navigation and integrated mutation scenarios. A lecturer published an assignment; a student uploaded it; lecturer downloaded identical bytes, graded and released the result; student viewed feedback and registered, settled a simulated invoice, granted/revoked consent; advisor recorded a shared note; administrator audit contained the expected actions. Browser testing does not cover every feature permutation. Manual DOCX sample, team-machine rehearsal and signature verification are still outstanding.
 
-Quality scenario targets in section 2 remain proposed, except observed permission and rollback test outcomes. Evidence links: https://github.com/Delstars/Discivium-test/actions/runs/45622890329 and https://github.com/Delstars/Discivium-test/actions/runs/45786330671.
+### Measured quality scenarios
+
+Run 45787922244 also executed prototype/benchmark.py on a single GitHub-hosted Linux runner over loopback HTTP, with a disposable SQLite database and one active upload at a time. The payload was a synthetic 1 MiB file with PDF header and footer, not a real-world document corpus. Measurements include full HTTP request/response time; restart time includes process startup, authentication and reading stored submissions.
+
+| Scenario | Acceptance target | Observed | Outcome |
+|---|---|---|---|
+| Upload latency | At least 19 of 20 uploads within 3 s | 20/20; median 0.0169 s; empirical p95 0.0629 s | Met in this environment |
+| Restart recovery | Restart and read within 30 s | 0.3328 s; 20/20 committed submissions still readable | Met in this environment |
+| Security | Reject cross-course/unauthorized access | Automated permission and consent revocation tests passed | Met for tested cases |
+| Reliability | No partial write after observer failure | Fault-injection rollback test passed | Met for tested case |
+| Modifiability | New strategy plus registration; no change to submit algorithm | Existing two policy implementations and selection demonstrate design; third-policy change not timed | Structural evidence only |
+
+These are single-run prototype measurements, not production throughput, concurrent-user capacity or an availability SLA. Reproduce with `python -m prototype.benchmark` and `python -m unittest prototype.tests prototype.campus_tests -v`.
+
+Evidence links: https://github.com/Delstars/Discivium-test/actions/runs/45787922244 and https://github.com/Delstars/Discivium-test/actions/runs/45787921976. The second run successfully generated the 34-page report draft and 25-page standalone UML appendix in A3 landscape; later report revisions may alter the page count.
 
 ## 9. Reflection
 
