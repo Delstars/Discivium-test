@@ -2,28 +2,12 @@
   "name": "discivium-workspace",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
   "scripts": {
-    "ensure-ui-deps": "node -e \"const fs=require('fs'),cp=require('child_process');if(!fs.existsSync('ui/node_modules/.bin/vite')){if(fs.existsSync('node_modules/.bin/vite')){fs.rmSync('ui/node_modules',{recursive:true,force:true});fs.symlinkSync('../node_modules','ui/node_modules','dir');}else{cp.execSync('npm --prefix ui install --include=dev --no-audit --no-fund',{stdio:'inherit'});}}\"",
-    "dev": "npm run ensure-ui-deps && npm --prefix ui run dev -- --host 0.0.0.0 --port 3000",
-    "build": "npm run ensure-ui-deps && npm --prefix ui run build && node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.mkdirSync('dist/ui',{recursive:true});fs.cpSync('ui/dist','dist/ui',{recursive:true});fs.writeFileSync('dist/index.html','<!doctype html><html lang=\\\"en\\\"><head><meta charset=\\\"utf-8\\\"><meta http-equiv=\\\"refresh\\\" content=\\\"0;url=/ui/\\\"><title>Discivium</title><script>window.location.replace(\\\"/ui/\\\"+window.location.hash);</script></head><body><a href=\\\"/ui/\\\">Open Discivium</a></body></html>');\"",
-    "lint": "npm run ensure-ui-deps && npm --prefix ui run lint",
-    "preview": "npm run ensure-ui-deps && npm --prefix ui run preview -- --host 0.0.0.0 --port 3000",
-    "test": "npm run ensure-ui-deps && npm --prefix ui test"
-  },
-  "dependencies": {
-    "lucide-react": "^0.546.0",
-    "react": "^19.0.1",
-    "react-dom": "^19.0.1"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.1.14",
-    "@types/node": "^22.14.0",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
-    "@vitejs/plugin-react": "^4.3.4",
-    "tailwindcss": "^4.1.14",
-    "typescript": "^5.8.2",
-    "vite": "^6.2.6"
+    "install": "npm --prefix ui ci",
+    "dev": "npm --prefix ui run dev",
+    "build": "npm --prefix ui run build",
+    "lint": "npm --prefix ui run lint",
+    "test": "npm --prefix ui test",
+    "preview": "npm --prefix ui run preview"
   }
 }

@@ -262,14 +262,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (csrf) {
         await logoutAccount(csrf);
       }
-    } catch {
-      // Discard client state even if session already expired.
-    } finally {
-      setState(null);
-      setSessionNotice(null);
-      navigate('overview');
-      notify('info', 'Signed out cleanly. Sign in with another account to switch roles.');
+    } catch (err) {
+      if (!(err instanceof ApiError && err.status === 401)) {
+        notify('error', 'Sign-out was not confirmed by the server. Your session may still be active; retry sign-out.');
+        return;
+      }
     }
+    setState(null);
+    setSessionNotice(null);
+    navigate('overview');
+    notify('info', 'Signed out. Sign in with another account to switch roles.');
   }, [previewRole, state?.csrf, navigate, notify]);
 
   const enterDesignPreview = useCallback(
@@ -310,15 +312,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       try {
         await postAction(action, payload, state.csrf);
-        const fresh = await fetchState();
-        setState(fresh);
-        if (successMessage) {
-          notify('success', successMessage);
+        try {
+          const fresh = await fetchState();
+          setState(fresh);
+          if (successMessage) notify('success', successMessage);
+        } catch (refreshError) {
+          if (refreshError instanceof ApiError && refreshError.status === 401) {
+            handleUnauthorized(refreshError.message);
+          }
+          notify('info', 'Server confirmed the action, but refreshing data failed. Refresh before taking another action.');
         }
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           handleUnauthorized(err.message);
         }
+        notify('error', err instanceof Error ? err.message : 'Action failed.');
         throw err;
       }
     },
@@ -344,15 +352,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       try {
         await uploadActionWithProgress(action, formData, state.csrf, onProgress);
-        const fresh = await fetchState();
-        setState(fresh);
-        if (successMessage) {
-          notify('success', successMessage);
+        try {
+          const fresh = await fetchState();
+          setState(fresh);
+          if (successMessage) notify('success', successMessage);
+        } catch (refreshError) {
+          if (refreshError instanceof ApiError && refreshError.status === 401) {
+            handleUnauthorized(refreshError.message);
+          }
+          notify('info', 'Server confirmed the action, but refreshing data failed. Refresh before taking another action.');
         }
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           handleUnauthorized(err.message);
         }
+        notify('error', err instanceof Error ? err.message : 'Action failed.');
         throw err;
       }
     },

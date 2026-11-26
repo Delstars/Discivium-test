@@ -8,3 +8,6 @@ ui/node_modules/
 ui/dist/
 docs/output/
 docs/uml/*.svg
+
+node_modules/
+ui/browser-evidence/

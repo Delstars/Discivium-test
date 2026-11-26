@@ -14,7 +14,8 @@ async function parseJsonSafe(res: Response): Promise<Record<string, unknown> | n
   const text = await res.text();
   if (!text) return null;
   try {
-    return JSON.parse(text) as Record<string, unknown>;
+    const value: unknown = JSON.parse(text);
+    return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
   } catch {
     return null;
   }
@@ -50,7 +51,46 @@ async function handleResponse<T>(res: Response): Promise<T> {
         : defaultErrorMessage(res.status);
     throw new ApiError(res.status, serverMsg);
   }
-  return (data ?? { ok: true }) as T;
+  if (!data) throw new ApiError(502, 'Backend returned an invalid JSON response. No success was assumed.');
+  return data as T;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+function isUser(value: unknown): boolean {
+  return isObject(value) && typeof value.id === 'number' && typeof value.username === 'string' &&
+    typeof value.name === 'string' && ['student','lecturer','admin','advisor'].includes(String(value.role));
+}
+export function validateSession(value: unknown): SessionResponse {
+  if (!isObject(value) || typeof value.authenticated !== 'boolean' ||
+    (value.authenticated ? !isUser(value.user) || typeof value.csrf !== 'string' || !value.csrf : value.user !== null || value.csrf !== null)) {
+    throw new ApiError(502, 'Invalid session response from backend.');
+  }
+  return value as unknown as SessionResponse;
+}
+export function validateSnapshot(value: unknown): AppStateSnapshot {
+  if (!isObject(value) || !isUser(value.user) || typeof value.csrf !== 'string' ||
+      !value.csrf || typeof value.semester !== 'string' || value.demo !== true || !Array.isArray(value.notifications)) {
+    throw new ApiError(502, 'Invalid campus snapshot from backend.');
+  }
+  const role=(value.user as {role:string}).role;
+  const arrays=(keys:string[])=>keys.every(k=>Array.isArray(value[k]));
+  const objects=(keys:string[])=>keys.every(k=>isObject(value[k]));
+  if ((role==='student' && (!arrays(['courses','timetable','catalogue','finance','requests']) || !objects(['record','attendance','advising']))) ||
+      (role==='lecturer' && !arrays(['courses','timetable'])) ||
+      (role==='admin' && (!arrays(['finance','requests']) || !objects(['governance']))) ||
+      (role==='advisor' && !arrays(['advisees']))) {
+    throw new ApiError(502, 'Incomplete role-specific campus snapshot from backend.');
+  }
+  if (Array.isArray(value.courses) && value.courses.some(c=>!isObject(c) || !Array.isArray(c.assignments) || !Array.isArray(c.resources) || !isObject(c.workspace) || !Array.isArray(c.workspace.messages) || !Array.isArray(c.workspace.forms))) {
+    throw new ApiError(502, 'Invalid course data from backend.');
+  }
+  return value as unknown as AppStateSnapshot;
+}
+export function validateAcknowledgement(value: unknown): {ok:boolean} {
+  if (!isObject(value) || value.ok !== true) throw new ApiError(502, 'Backend did not confirm the command.');
+  return {ok:true};
 }
 
 export async function fetchSession(): Promise<SessionResponse> {
@@ -67,7 +107,7 @@ export async function fetchSession(): Promise<SessionResponse> {
       'Unable to reach the Discivium Python backend at /api/session. Confirm "python -m prototype.app" is running on 127.0.0.1:8000.'
     );
   }
-  return handleResponse<SessionResponse>(res);
+  return validateSession(await handleResponse<unknown>(res));
 }
 
 export async function fetchState(): Promise<AppStateSnapshot> {
@@ -84,7 +124,7 @@ export async function fetchState(): Promise<AppStateSnapshot> {
       'Unable to reach /api/state. Ensure the Discivium backend server is running.'
     );
   }
-  return handleResponse<AppStateSnapshot>(res);
+  return validateSnapshot(await handleResponse<unknown>(res));
 }
 
 export async function loginAccount(
@@ -108,7 +148,7 @@ export async function loginAccount(
       'Cannot connect to /api/login. Start the Python backend with "python -m prototype.app" and retry.'
     );
   }
-  return handleResponse<{ ok: boolean }>(res);
+  return validateAcknowledgement(await handleResponse<unknown>(res));
 }
 
 export async function logoutAccount(csrf: string): Promise<{ ok: boolean }> {
@@ -122,7 +162,7 @@ export async function logoutAccount(csrf: string): Promise<{ ok: boolean }> {
     },
     body: JSON.stringify({}),
   });
-  return handleResponse<{ ok: boolean }>(res);
+  return validateAcknowledgement(await handleResponse<unknown>(res));
 }
 
 export async function postAction(
@@ -148,7 +188,7 @@ export async function postAction(
       `Network failure while posting action "${action}". No change was assumed.`
     );
   }
-  return handleResponse<{ ok: boolean }>(res);
+  return validateAcknowledgement(await handleResponse<unknown>(res));
 }
 
 export function uploadActionWithProgress(
@@ -192,7 +232,7 @@ export function uploadActionWithProgress(
         }
       }
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve((parsed ?? { ok: true }) as { ok: boolean });
+        try { resolve(validateAcknowledgement(parsed)); } catch (error) { reject(error); }
       } else {
         const message =
           parsed && typeof parsed.error === 'string' && parsed.error.trim()
