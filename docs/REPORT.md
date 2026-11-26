@@ -6,13 +6,13 @@ Draft for team verification • Fall 2026 • Canadian University Dubai
 **Instructor:** Dr. Khaled Ammar  
 **Repository:** https://github.com/Delstars/Discivium-test
 
-This report describes the local coursework implementation on the architecture-rebuild branch. It is not a claim that the full university platform is complete or that every proposed quality target has been measured. Replace bracketed fields with verified team information before submitting.
+This report describes the expanded Discivium local demonstration, including the React presentation and Python campus modules. The original coursework slice remains the primary assessed vertical workflow. It is not a claim that the full university platform is complete or that every proposed quality target has been measured. Replace bracketed fields with verified team information before submitting.
 
 ## 1. Introduction and problem statement
 
 Students and lecturers may need separate tools for coursework, deadlines, academic records and campus services. Fragmented workflows create avoidable context switching and make it harder to track the status of assignments and feedback. Discivium proposes a unified university portal for a UAE university context. The implemented release focuses on the coursework journey: a lecturer publishes an assignment, an enrolled student uploads a document, the lecturer downloads and grades it, and the student sees the feedback. Administrators can enroll students. The advisor interface explicitly states that advising is not implemented.
 
-Scope exclusions: real university integration, financial transactions, self-service registration, official transcripts, attendance, live AI, cloud deployment and production security. The prototype is an independent local demonstration with fictional data; stakeholder validation and institutional adoption are not claimed.
+Implemented scope: authenticated student, lecturer, administrator and consent-controlled advisor portals; coursework and resources; registration and timetable; attendance and released academic records; simulated finance; campus requests; internal discussion and polls; programmes, accounts, assignments and audit. Scope exclusions: real university integration, real payments, official transcripts, AI, cloud deployment and production security. The prototype uses fictional data, and no stakeholder interviews or institutional adoption are claimed.
 
 ## 2. Stakeholders and requirements
 
@@ -21,7 +21,7 @@ Scope exclusions: real university integration, financial transactions, self-serv
 | Student | Reliable submission and private feedback | Ownership checks; persistent submission bytes |
 | Lecturer | Publish, review and grade their courses | Relationship-based authorisation |
 | Administrator | Maintain enrollments | Restricted admin operations |
-| Advisor | Appropriate access to academic progression | No private access until consent and assignment rules are designed |
+| Advisor | Appropriate access to academic progression | Assigned advisor and student-granted consent; deterministic risk thresholds |
 | University IT / assessor | Reproducible, explainable, secure design | Local setup, documentation, traceability |
 
 ### Functional requirements
@@ -36,6 +36,15 @@ Scope exclusions: real university integration, financial transactions, self-serv
 | FR6 | Administrators can enroll a student; others cannot perform this operation. | Administrator |
 | FR7 | Publish, submit and grade produce persistent audit events and recipient notifications in the same transaction. | University IT |
 | FR8 | Users can view permitted coursework and download authorised documents only. | Student / lecturer |
+| FR9 | Students register and admins enroll only when prerequisites, capacity, timetable, credit cap and course closure rules permit. | Student / administrator |
+| FR10 | Assigned lecturers create attendance sessions and record enrolled student marks; students view their own rates. | Lecturer / student |
+| FR11 | Assigned lecturers release immutable results from graded assignments; students see credit-weighted GPA and export fictional records. | Lecturer / student |
+| FR12 | Admin issues fictional invoices; owner student settles once; both see ledger. | Administrator / student |
+| FR13 | Student creates/cancels service requests; admin processes legal status transitions and records decisions. | Student / administrator |
+| FR14 | Assigned advisor sees private records only with active consent; can add shared notes; student revokes access. | Student / advisor |
+| FR15 | Assigned lecturer publishes documents and polls; enrolled users read resources and discuss; students respond once. | Lecturer / student |
+| FR16 | Admin manages demo accounts, programmes, course offerings, advisor assignments and audit. | Administrator |
+| FR17 | Owners can mark notifications read; browser uses real server session and validates response. | All users |
 
 ### Quality attribute scenarios
 
@@ -61,8 +70,9 @@ Actual evidence: the original Discivium repository documents an initial planning
 |---|---|
 | Original planning period | Existing roadmap, UML sources and architecture proposal available |
 | 23 November | AI Studio scaffold recorded in Git |
-| 25 November | Rebuild branch, coursework implementation and draft model set |
-| 26–27 November | Planned team review, test execution, demo rehearsal, verify report and export UML PDFs |
+| 25 November | Rebuild branch, coursework implementation, expanded campus modules and draft model set; 17 Python tests passed |
+| 26 November | AI Studio React frontend committed; independent CI verified build, seven formatter tests, and four-role live browser navigation; finalisation refactors and documentation revisions initiated |
+| 27 November | Planned team-machine rehearsal, review signatures and submit package; confirm official slot |
 | Assigned presentation | Confirm team slot and Moodle deadline; every member rehearses |
 
 ## 4. Analysis models
@@ -78,28 +88,45 @@ Actor: enrolled student. Goal: submit an actual document. Preconditions: authent
 ### UC3 — Release feedback (FR4, FR5, FR7)
 Actor: assigned lecturer. Goal: release scored feedback. Preconditions: authenticated; ungraded submission exists; course assignment. Main: (1) view submissions; (2) download and review document; (3) enter score and comment; (4) validate lecturer, range and state; (5) create feedback, set state graded, notify student and audit; (6) commit and show feedback. Alternative: no alternative success path; score can be any integer within range. Exceptions: wrong lecturer -> 403; invalid score/comment -> 400; already graded -> 409; write failure -> rollback. Postconditions: student sees released feedback, no second grade.
 
+### UC4 — Register for a course (FR9)
+Actor: student; preconditions: authenticated, current offering exists. Main: browse catalogue; choose course; validate eligibility and available seats in the transaction; insert enrollment; audit and notify; refresh timetable. Alternatives/exceptions: already enrolled/passed, prerequisite missing, timetable overlap, capacity reached, credit cap or closed course -> 409 with no enrollment. Postcondition: exactly one new enrollment, or no change. Admin enrollment uses the same allocation rules with an explicit student ID.
+
+### UC5 — Process campus service request (FR13)
+Actors: student and administrator. Student submits category, subject and description; system creates Pending and notifies admin. Admin moves Pending to InReview or rejects; InReview can resolve or reject with decision; owner may cancel Pending/InReview. All invalid transitions rejected with 409; unauthorized actors receive 403. Postcondition: persisted state, decision where required and audit/notification.
+
+### UC6 — Consent-controlled advising (FR14)
+Actors: student and assigned academic advisor. Student grants consent; advisor fetches assigned student snapshot; server returns released record and attendance only if consent is active; advisor records shared note. Student revokes consent; subsequent advisor snapshot omits private fields and note writes are denied. Without consent, no private records are sent. Postcondition: consent and notes persisted, and authorized data only.
+
+### Additional use cases (FR10–FR17)
+Attendance session/mark, released result/GPA, issue and settle demo invoice, publish/download resource, course discussion, create/respond/close poll, programme and account management, notification read and audit search are represented in the expanded use-case and component diagrams. The original three detailed use cases remain the presentation's primary learning workflow.
+
 ### Model consistency
 
-Student and lecturer are external actors; Discivium is the system lane. SSDs show only external requests/responses, while the internal sequence exposes components. State-changing learning operations are publish, submit and grade; publish creates an assignment, submit creates Submitted and grade transitions to Graded. Reading and downloading are non-mutating. Graded is terminal; late is a flag rather than an independent state. Enrollment is a separate record without a lifecycle in this prototype. Model vocabulary follows the code and database, not the legacy UI.
+Student and lecturer are external actors; Discivium is the system lane. SSDs show only external requests/responses, while the internal sequence exposes components. State-changing learning operations are publish, submit and grade; publish creates an assignment, submit creates Submitted and grade transitions to Graded. Reading and downloading are non-mutating. Graded is terminal; late is a flag rather than an independent state. Enrollment is a separate allocation record; request, invoice, poll and consent state models document the expanded modules. A late submission is a flag; a final result is immutable. Model vocabulary follows the code and database, not the legacy UI.
 
 ## 5. Domain and structural models
 
-Conceptual domain: User, Course, Enrollment, Assignment, Submission, Feedback, Notification and AuditEntry. The domain model omits database keys and service operations. A course has one lecturer, many enrollments and assignments; each enrollment joins one student and one course. Each assignment has many submissions, but at most one per student. Each submission has zero or one feedback. These cardinalities are represented by foreign keys and uniqueness constraints in SQLite. Actual service classes and their operations are documented separately in the class diagram.
+The coursework domain model remains the detailed view of User, Course, Enrollment, Assignment, Submission, Feedback, Notification and AuditEntry. The campus extension model adds Offering, Prerequisite, CourseResult, AttendanceSession/AttendanceMark, Invoice/Payment, ServiceRequest, AdvisorAssignment/AdvisingNote, Resource, CourseMessage, CourseForm/FormResponse, Programme and NotificationRead. Conceptual classes exclude storage keys and service operations; the implementation class diagrams show attributes, operations, associations and multiplicity. A course has one assigned lecturer, zero or one offering in this prototype, many enrollments, assignments and resources; a student has one enrollment per course, at most one submission per assignment, at most one feedback per submission and one released result per course. An invoice has zero or one settlement; a poll has at most one response per enrolled student. Consent is per student-advisor assignment, initially disabled.
 
-| Component | Responsibility | Interface / implementation |
-|---|---|---|
-| Web presentation | Request parsing, escaped HTML, CSRF, redirects, transaction boundary | app.py, views.py |
-| Identity | Verify password and server-side role, session | IdentityService |
-| Courses | Course ownership and enrollment checks | CourseService |
-| Learning | Publication, submission, download, grading and read access | LearningFacade |
-| Persistence | Database connection, schema, submission repository, file storage | Database, LearningRepository, SQLiteFileAdapter |
-| Events | Audit and recipient notifications | EventBus, AuditObserver, NotificationObserver |
+| Component | Responsibility / implementation |
+|---|---|
+| React presentation | ui/src/App.tsx, AppShell, role feature components, AppContext, typed apiClient; browser only |
+| HTTP application boundary | prototype/app.py (session, CSRF, HTTP, transaction), api.py (CampusAPI snapshot/command) |
+| Identity / courses | identity.py, courses.py; session and relationship checks |
+| Learning / resources | learning.py (Facade, Strategy, Adapter, Repository), resources.py |
+| Registration / records / attendance | registration.py, academic_records.py, attendance.py |
+| Finance / requests | finance.py, student_services.py |
+| Advising / workspace | advising.py, workspace.py; consent and membership constraints |
+| Governance | governance.py; programme, account, offering and assignment operations |
+| Persistence / observers | db.py, campus_schema.sql, LearningRepository, SQLiteFileAdapter, EventBus and observers |
 
-The architecture is layered but pragmatic: identity/course services and some learning/read-view operations use parameterised SQL directly, rather than having a repository class for every table. This is a known limitation of strict layering. The component diagram includes these dependencies. The deployment is one browser and one Python process on a local machine with a SQLite file; no external service is needed. The 4+1 views are represented by class/domain (logical), internal sequence (process interaction, single process), module/component (development), deployment (physical) and use cases (scenarios).
+The application is a layered modular monolith, not microservices: one Python process, one authoritative SQLite store, in-process service interfaces, browser requests over loopback HTTP. Learning SQL is isolated in LearningRepository; newer service modules still perform parameterised SQL directly, and CampusAPI coordinates role-specific snapshot reads. This is a pragmatic limitation, not strict clean architecture. The original fallback HTML remains available; the assessed UI is React built by Vite and served from ui/dist on the same origin. In deployment the browser holds no authoritative records and no database credentials. The 4+1 views are represented by logical domain/class, process interactions (single runtime), development components, physical deployment and use cases. The expanded component, class and deployment diagrams show the actual feature modules; the coursework class diagram preserves the four pattern implementations.
+
+Consistency checks: FR9 maps to RegistrationService and UC4; FR13 to StudentServices and its lifecycle; FR14 to AdvisingService and consent state; FR2–5 to LearningFacade and the existing detailed sequence diagrams. CampusAPI dispatches explicit command names; no client-side role selection. Observer effects are synchronous and transactional, not a distributed broker.
 
 ## 6. Architectural analysis and trade-offs
 
-Candidate A: layered modular monolith, one deployable runtime, in-process interfaces, shared relational store. Candidate B: microservices, separate deployed identity/course/learning services and network interfaces. Candidate C: event-driven architecture, components exchanging events asynchronously. Observer is used within A, not a claim of distributed event-driven deployment.
+Candidate A: layered modular monolith, one deployable backend runtime, in-process interfaces, shared relational store and a separate browser presentation. Candidate B: microservices, separate deployed identity/course/learning services and network interfaces. Candidate C: event-driven architecture, components exchanging events asynchronously. Observer is used within A, not a claim of distributed event-driven deployment.
 
 | Criterion | A: layered monolith | B: microservices | C: asynchronous events |
 |---|---|---|---|
@@ -129,25 +156,28 @@ Factory Method and Singleton were not forced into the solution: no complex creat
 
 ## 8. Prototype and verification
 
-Run from repository root: python -m prototype.app. Open http://127.0.0.1:8000. All fictional accounts use DemoOnly!2026; see README for roles and exact demo. The legacy AI Studio application is archived on legacy-ai-studio-backup and excluded from this runtime. Standard-library Python was selected over the previously proposed Django/SQLite and AI Studio React/Express/Firebase setup because it requires no package installation or cloud credentials for the demonstration. This trades away framework security and production features; HTTPServer is loopback-only, not production-grade.
+From repository root: cd ui; npm ci; npm run build; cd ..; python -m prototype.app. Open http://127.0.0.1:8000/ui/. Python 3.11+ and Node.js 20+ are required for a fresh build. Use fictional accounts and DemoOnly!2026. The React/Vite/TypeScript interface is served by Python from ui/dist; browser and API share origin, cookie session and CSRF token. The original AI Studio scaffold is archived on legacy-ai-studio-backup. Python's standard library and SQLite reduce installation and cloud dependencies; React gives component reuse and typed API contracts without introducing a second backend. This trades away production framework protections and availability.
 
-Actual document bytes are stored in the SQLite file, linked to the submission. SQLite transactions cover the write operations and observers. Basic PDF/DOCX signature validation is not malware scanning. Shared demo password, HTTP, in-memory sessions, single server and no rate limiting are prototype limitations; do not use real accounts or publish the server.
+Implemented workflows are listed in FR1–FR17. Real document bytes are saved as BLOBs, mutations run under SQLite transactions, and synchronous audit/notification observers share the transaction. Basic PDF/DOCX signature checks are not malware scanning. Shared fictional passwords, loopback HTTP, in-memory sessions, single process, demo semester/rules and no rate limiting are deliberate prototype constraints. No actual payments, official transcript, AI or university integration.
 
-| Requirement | Code / verification |
+| Requirement | Implementation and evidence |
 |---|---|
-| FR1 | IdentityService; HTTP login and CSRF test |
-| FR2 | LearningFacade.publish_assignment; workflow and permission tests |
-| FR3 | LearningFacade.submit; validation, strategy and duplicate tests |
-| FR4–5 | LearningFacade.grade/download/submissions; workflow, permission, HTTP tests |
-| FR6 | CourseService.enroll; manual administrator demonstration |
-| FR7 | EventBus / observers; workflow counts and rollback injection |
-| FR8 | CourseService.visible, LearningFacade read operations; HTTP and permission tests |
+| FR1–FR8 | IdentityService, LearningFacade, CourseService, LearningRepository, EventBus; Python permission, validation, persistence, rollback and HTTP workflow |
+| FR9 | RegistrationService; prerequisite, duplicate and timetable rejection tests |
+| FR10–11 | AttendanceService, AcademicRecordsService; role, released result and GPA tests |
+| FR12–13 | FinanceService, StudentServices; ownership, repeat settlement and lifecycle tests |
+| FR14 | AdvisingService; consent revocation and note visibility test |
+| FR15 | ResourceService, WorkspaceService; ownership, resource bytes, poll duplicate and message tests |
+| FR16–17 | GovernanceService, CampusAPI; account, programme, privacy and notification tests |
+| React integration | Independent Node install, TypeScript/Vite build, seven formatter tests and live Chromium logins/navigation across four roles; screenshot artifacts |
 
-Run python -m unittest prototype.tests -v. Record observed output here: 25 November 2026 — automated unittest step succeeded on commit fe36b97ce3ba4ca3484eaf509c43b314c48d657a, GitHub Actions run 45602361622. Individual log inspection was unavailable when this note was recorded; PDF export and team-machine rehearsal were not yet confirmed.. Performance scenario, restart timing, DOCX sample and team-machine rehearsal require manual verification. Test cases are not test results.
+Verified evidence: 17 Python tests passed in GitHub Actions run 45622890329 on commit ff6d747f8e65a3310ccf13c8401f5c3136c85979. React integration run 45786330671 on the isolated verification branch for AI Studio commit 01f7d924950499946ee4b4e9f47b235ce68b7226 succeeded; browser screenshots are artifact 15100008126. These browser tests verify login/navigation, not every mutation. Subsequent finalisation changes must be checked against their own CI run. Performance target (20 uploads), restart timing, manual DOCX sample, actual team-machine rehearsal and signature verification are outstanding. No fabricated benchmark results.
+
+Quality scenario targets in section 2 remain proposed, except observed permission and rollback test outcomes. Evidence links: https://github.com/Delstars/Discivium-test/actions/runs/45622890329 and https://github.com/Delstars/Discivium-test/actions/runs/45786330671.
 
 ## 9. Reflection
 
-The initial prototype emphasized breadth and interface presentation rather than actual authoritative persistence. The rebuild instead prioritizes a demonstrable vertical workflow and consistent security boundaries. A future iteration should integrate selected UI assets, introduce a production web framework, move residual SQL to repositories, add stronger validation and deployment security, and implement controlled advising and registration only after requirements are verified. Scope reductions and unmeasured quality targets are explicitly acknowledged.
+The initial prototype emphasized breadth and interface presentation rather than actual authoritative persistence. The rebuild instead prioritizes a demonstrable vertical workflow and consistent security boundaries. The later increment integrated a separate React presentation and expanded campus services. A future iteration should introduce a production web framework, move residual SQL to repositories, add stronger validation and deployment security, make the semester configurable and validate institutional rules with real stakeholders. Scope reductions and unmeasured quality targets are explicitly acknowledged.
 
 ## 10. Contribution statement and AI use
 
@@ -160,7 +190,7 @@ Complete this with actual contributions and signatures; do not invent participat
 | [Name] | [Tasks, commits, reviews] | [Sign] |
 | [Name if applicable] | [Tasks, commits, reviews] | [Sign] |
 
-Google AI Studio generated the earlier prototype. ChatGPT inspected the project brief, lecture materials and two repositories, generated the rebuild code, tests, model sources, ADRs and this report draft. The team must record its actual review, edits, validation and individual contributions. The team remains responsible for explaining every diagram, pattern and decision.
+Google AI Studio generated the earlier prototype and the later React frontend. ChatGPT inspected the project brief, lecture materials and two repositories, generated the rebuild code, tests, model sources, ADRs and this report draft. ChatGPT also reviewed the generated UI, verified builds and browser navigation, and produced finalisation refactors and updated diagrams. The team must record its actual review, edits, validation and individual contributions. The team remains responsible for explaining every diagram, pattern and decision.
 
 Course references: BCS305 official project description; Modules 02 (SDLC), 03 (Requirements Engineering), 04 (System Analysis Models), 06 (Structure, Interaction & Views), 07 (Architectural Design), 09 (Quality Attributes, Trade-offs & Styles), 11 (Design Patterns in Python), and Week 6 Model Set Studio. No lecture files are redistributed in the repository.
 

@@ -29,3 +29,6 @@ Confirm the actual time limit and team order with the instructor. This is a sugg
 - Verify the generated report and UML PDFs visually; fill actual team contributions and signatures.
 - Keep a local copy of the repository and PDFs; no Wi-Fi or API credentials required for the demo.
 - Measure the quality scenarios before claiming the targets were met.
+
+## Expanded integrated demonstration
+Use the React interface at /ui/; build with npm ci and npm run build in ui first. Demonstrate student registration success (Algorithms I) and rejection (Advanced Algorithms prerequisite or HCI timetable conflict), lecturer attendance and resource upload, grade release, consent grant/revoke and audit events. Keep optional simulated finance and request workflow ready if asked. Use a disposable fresh database via --db path; do not use actual personal information. Keep the original assignment/feedback journey as the assessed core.

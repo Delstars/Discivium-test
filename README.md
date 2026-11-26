@@ -2,13 +2,17 @@
 
 **Current implementation (main branch).** A runnable local university management and coursework system, using fictional accounts. The original Google AI Studio React/Firebase/Express implementation is archived on the `legacy-ai-studio-backup` branch and removed from the active source tree. AI is excluded from the active release.
 
-## Run (Python 3.11+; no third-party packages)
+## Run the complete React + Python application (Python 3.11+, Node.js 20+)
 
 From the repository root:
 ```sh
+cd ui
+npm ci
+npm run build
+cd ..
 python -m prototype.app
 ```
-Open http://127.0.0.1:8000 in a browser; after signing in, use **Open full campus dashboard** to access expanded features, or http://127.0.0.1:8000/campus. Once the new UI is built in ui/dist, open http://127.0.0.1:8000/ui/. On Windows use `py -3` instead of `python` if needed. All demo accounts share **DemoOnly!2026**. They are deliberately public and must never be used in a deployment.
+Open http://127.0.0.1:8000/ui/ in a browser. The fallback HTML interface is available at http://127.0.0.1:8000/. On Windows use `py -3` instead of `python` if needed. All demo accounts share **DemoOnly!2026**. They are deliberately public and must never be used in a deployment.
 
 | Account | Responsibility |
 | --- | --- |
@@ -36,12 +40,12 @@ Tests cover service rules and a full HTTP workflow with a temporary database. Do
 
 ## UI handoff
 
-[API contract](docs/UI_API.md) · [Google AI Studio prompt](docs/AI_STUDIO_PROMPT.md) · [Expanded architecture and documentation handoff](docs/CAMPUS_EXPANSION.md). The previous report describes the coursework slice; update it and UML before submission.
+[API contract](docs/UI_API.md) · [Google AI Studio prompt](docs/AI_STUDIO_PROMPT.md) · [Expanded architecture and documentation handoff](docs/CAMPUS_EXPANSION.md). The revised report documents both the coursework slice and the expanded campus system; final team details and review are required.
 
 ## Scope and architecture
 
 Layered modular monolith: browser / presentation, Identity, Courses, Learning, data access and SQLite. Files are stored as BLOBs atomically with submissions. Four patterns: Facade, Strategy, Adapter, Observer. See [project design and report draft](docs/REPORT.md), [diagram sources](docs/uml), and [decision records](docs/ADR.md).
 
-Local loopback only: Python HTTPServer is not production-grade; sessions are in memory, credentials are fictional, basic file signature validation is not malware scanning, no TLS or university integration. Expanded campus workflows include registration, attendance, released results and GPA, fictional CSV export, simulated finance, requests, advisor consent, course resources, discussion/polls, programme and account management. No AI, official transcripts, real financial processing, cloud integration or production deployment. The archived legacy UI is not a working production alternative. The new premium frontend is pending design and integration.
+Local loopback only: Python HTTPServer is not production-grade; sessions are in memory, credentials are fictional, basic file signature validation is not malware scanning, no TLS or university integration. Expanded campus workflows include registration, attendance, released results and GPA, fictional CSV export, simulated finance, requests, advisor consent, course resources, discussion/polls, programme and account management. No AI, official transcripts, real financial processing, cloud integration or production deployment. The archived legacy UI is not a working production alternative. The React frontend is integrated; see verification evidence and latest CI status.
 
-AI assistance: ChatGPT generated the rebuild and draft documentation from the course materials and existing repository; team must review, run tests and record actual contributions and modifications before submission. No real student data or secrets in this repository.
+AI assistance: Google AI Studio generated the React frontend; ChatGPT generated the backend, refactors, tests and draft documentation from the course materials and existing repository; team must review, run tests and record actual contributions and modifications before submission. No real student data or secrets in this repository.

@@ -1,6 +1,6 @@
 # Expanded campus release — documentation handoff
 
-This is a scope update after the original coursework report. The earlier REPORT.md and fifteen original UML sources describe the tested coursework slice, not the complete expanded system. They must be revised and re-exported before final submission; do not present their exclusions as current. The report is still a draft; actual contribution statements, performance measurements, and visual inspection are outstanding.
+This is a scope update after the original coursework report. The earlier REPORT.md and fifteen original UML sources describe the tested coursework slice, not the complete expanded system. The report and expanded UML views are now revised; verify final PDF exports before submission. The report is still a draft; actual contribution statements, performance measurements, and visual inspection are outstanding.
 
 ## Active modules and responsibilities
 
@@ -26,6 +26,6 @@ The browser calls HTTP endpoints; presentation invokes CampusAPI; application co
 
 New state machines worth drawing: ServiceRequest (pending -> in_review -> resolved/rejected, pending -> rejected, pending/in_review -> cancelled); Invoice (unpaid -> paid); Poll (open -> closed); AdvisorConsent (not granted <-> granted). Final grades are immutable in prototype. No AI, official university integration, real financial processing, production security or institutional rollout. Demo semester is fixed to Fall 2026; timetable and thresholds are fictional course rules, not verified university policy. Single-question polls, course discussions and CSV export are intentionally scoped rather than full commercial services.
 
-Frontend: backend and fallback interface are committed; the polished React UI is still a separate design/porting task. See UI_API.md and AI_STUDIO_PROMPT.md. Testing and report export evidence must be checked for the current commit; previous green runs do not certify later changes.
+Frontend: backend and fallback interface are committed; the React UI was integrated on main and independently verified through build and role-navigation tests. See UI_API.md and AI_STUDIO_PROMPT.md. Testing and report export evidence must be checked for the current commit; previous green runs do not certify later changes.
 
 Repository layout: main is the clean current implementation; legacy-ai-studio-backup preserves the original AI Studio source. ui-redesign is an optional frontend-only branch. If the tool only supports main, edit only ui/ and preserve every other path.
