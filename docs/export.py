@@ -14,4 +14,7 @@ css="""<style>@page {size:A4;margin:18mm;@bottom-right{content:counter(page)}} @
 diagrams=''.join(f'<section class="diagram"><h2>{i+1}. {name.replace("-"," ").title()}</h2><img src="{(uml/(name+".svg")).as_uri()}"></section>' for i,name in enumerate(order))
 report=markdown.markdown((root/'REPORT.md').read_text(),extensions=['tables','fenced_code'])
 for name,body in [('Discivium_Report_DRAFT',report+diagrams),('Discivium_UML',diagrams)]:
-    HTML(string='<html><head>'+css+'</head><body>'+body+'</body></html>',base_url=str(root)).write_pdf(out/(name+'.pdf'))
+    export_css=css
+    if name=='Discivium_UML':
+        export_css=css.replace('A4 landscape','A3 landscape').replace('max-height:153mm','max-height:245mm').replace('max-width:100%;','width:auto;max-width:100%;')
+    HTML(string='<html><head>'+export_css+'</head><body>'+body+'</body></html>',base_url=str(root)).write_pdf(out/(name+'.pdf'))
