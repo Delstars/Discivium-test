@@ -1,51 +1,13 @@
-import React, { useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  Award,
-  CalendarCheck,
-  Check,
-  Download,
-  FileText,
-  Lock,
-  MessageSquare,
-  Plus,
-  Send,
-  Trash2,
-  Upload,
-  Vote,
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { Award, Download, Lock } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ApiError } from '../../lib/apiClient';
-import type {
-  CourseItem,
-  AssignmentItem,
-  AttendanceStatus,
-  SubmissionItem,
-} from '../../types/api';
-import {
-  asBoolean,
-  formatIsoDateTimeUae,
-  formatStatusLabel,
-  formatTimeRange,
-  normalizeDueAtUae,
-  weekdayName,
-} from '../../lib/formatters';
-import {
-  ConfirmDialog,
-  EmptyState,
-  ErrorBanner,
-  Field,
-  Modal,
-  PageHeader,
-  SectionCard,
-  StatusBadge,
-  inputClass,
-  primaryBtnClass,
-  secondaryBtnClass,
-} from '../ui/Primitives';
+import type { CourseItem, AssignmentItem, SubmissionItem } from '../../types/api';
+import { asBoolean, formatIsoDateTimeUae, normalizeDueAtUae } from '../../lib/formatters';
+import { ConfirmDialog, EmptyState, ErrorBanner, Field, Modal, SectionCard, StatusBadge, inputClass, primaryBtnClass, secondaryBtnClass } from '../ui/Primitives';
 
 export function LecturerCoursework({ course, active, pubOpen, setPubOpen }: { course: CourseItem; active: boolean; pubOpen: boolean; setPubOpen: (value: boolean) => void }) {
-  const { executeAction, executeUpload, executeDownload } = useApp();
+  const { executeAction, executeDownload } = useApp();
   const [pubTitle, setPubTitle] = useState('');
   const [pubDesc, setPubDesc] = useState('');
   const [pubDue, setPubDue] = useState('2026-12-15T23:59');

@@ -1,51 +1,13 @@
-import React, { useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  Award,
-  CalendarCheck,
-  Check,
-  Download,
-  FileText,
-  Lock,
-  MessageSquare,
-  Plus,
-  Send,
-  Trash2,
-  Upload,
-  Vote,
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { Check } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ApiError } from '../../lib/apiClient';
-import type {
-  CourseItem,
-  AssignmentItem,
-  AttendanceStatus,
-  SubmissionItem,
-} from '../../types/api';
-import {
-  asBoolean,
-  formatIsoDateTimeUae,
-  formatStatusLabel,
-  formatTimeRange,
-  normalizeDueAtUae,
-  weekdayName,
-} from '../../lib/formatters';
-import {
-  ConfirmDialog,
-  EmptyState,
-  ErrorBanner,
-  Field,
-  Modal,
-  PageHeader,
-  SectionCard,
-  StatusBadge,
-  inputClass,
-  primaryBtnClass,
-  secondaryBtnClass,
-} from '../ui/Primitives';
+import type { CourseItem, AttendanceStatus } from '../../types/api';
+import { formatStatusLabel } from '../../lib/formatters';
+import { EmptyState, ErrorBanner, Field, SectionCard, StatusBadge, inputClass, primaryBtnClass } from '../ui/Primitives';
 
 export function LecturerAttendance({ course, active }: { course: CourseItem; active: boolean }) {
-  const { executeAction, executeUpload, executeDownload } = useApp();
+  const { executeAction } = useApp();
   const [attDate, setAttDate] = useState('2026-11-25');
   const [attTitle, setAttTitle] = useState('');
   const [attBusy, setAttBusy] = useState(false);

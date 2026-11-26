@@ -1,47 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  Award,
-  CalendarCheck,
-  Check,
-  Download,
-  FileText,
-  Lock,
-  MessageSquare,
-  Plus,
-  Send,
-  Trash2,
-  Upload,
-  Vote,
-} from 'lucide-react';
+import { ArrowLeft, CalendarCheck, Download, FileText, MessageSquare, Plus, Upload } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { ApiError } from '../../lib/apiClient';
-import type {
-  AssignmentItem,
-  AttendanceStatus,
-  SubmissionItem,
-} from '../../types/api';
-import {
-  asBoolean,
-  formatIsoDateTimeUae,
-  formatStatusLabel,
-  formatTimeRange,
-  normalizeDueAtUae,
-  weekdayName,
-} from '../../lib/formatters';
-import {
-  ConfirmDialog,
-  EmptyState,
-  ErrorBanner,
-  Field,
-  Modal,
-  PageHeader,
-  SectionCard,
-  StatusBadge,
-  inputClass,
-  primaryBtnClass,
-  secondaryBtnClass,
-} from '../ui/Primitives';
+
+
+import { formatTimeRange, weekdayName } from '../../lib/formatters';
+import { EmptyState, PageHeader, primaryBtnClass, secondaryBtnClass } from '../ui/Primitives';
 
 type LecturerTab = 'coursework' | 'resources' | 'attendance' | 'workspace';
 import { LecturerCoursework } from './LecturerCoursework';
@@ -84,7 +47,6 @@ export function LecturerCourseDetail({ courseId }: { courseId: number }) {
   }
 
   const roster = course.roster ?? [];
-  const sessions = course.attendance_sessions ?? [];
   const releasedResults = course.released_results ?? [];
   const courseHasReleasedResults = releasedResults.length > 0;
 

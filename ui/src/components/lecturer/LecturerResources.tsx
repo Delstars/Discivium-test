@@ -1,51 +1,13 @@
-import React, { useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  Award,
-  CalendarCheck,
-  Check,
-  Download,
-  FileText,
-  Lock,
-  MessageSquare,
-  Plus,
-  Send,
-  Trash2,
-  Upload,
-  Vote,
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { Download, Upload } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ApiError } from '../../lib/apiClient';
-import type {
-  CourseItem,
-  AssignmentItem,
-  AttendanceStatus,
-  SubmissionItem,
-} from '../../types/api';
-import {
-  asBoolean,
-  formatIsoDateTimeUae,
-  formatStatusLabel,
-  formatTimeRange,
-  normalizeDueAtUae,
-  weekdayName,
-} from '../../lib/formatters';
-import {
-  ConfirmDialog,
-  EmptyState,
-  ErrorBanner,
-  Field,
-  Modal,
-  PageHeader,
-  SectionCard,
-  StatusBadge,
-  inputClass,
-  primaryBtnClass,
-  secondaryBtnClass,
-} from '../ui/Primitives';
+import type { CourseItem } from '../../types/api';
+import { formatIsoDateTimeUae } from '../../lib/formatters';
+import { EmptyState, ErrorBanner, Field, Modal, SectionCard, inputClass, primaryBtnClass, secondaryBtnClass } from '../ui/Primitives';
 
 export function LecturerResources({ course, active, resOpen, setResOpen }: { course: CourseItem; active: boolean; resOpen: boolean; setResOpen: (value: boolean) => void }) {
-  const { executeAction, executeUpload, executeDownload } = useApp();
+  const { executeUpload, executeDownload } = useApp();
   const [resTitle, setResTitle] = useState('');
   const [resFile, setResFile] = useState<File | null>(null);
   const [resBusy, setResBusy] = useState(false);

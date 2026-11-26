@@ -1,51 +1,13 @@
-import React, { useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  Award,
-  CalendarCheck,
-  Check,
-  Download,
-  FileText,
-  Lock,
-  MessageSquare,
-  Plus,
-  Send,
-  Trash2,
-  Upload,
-  Vote,
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { Send, Trash2, Vote } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ApiError } from '../../lib/apiClient';
-import type {
-  CourseItem,
-  AssignmentItem,
-  AttendanceStatus,
-  SubmissionItem,
-} from '../../types/api';
-import {
-  asBoolean,
-  formatIsoDateTimeUae,
-  formatStatusLabel,
-  formatTimeRange,
-  normalizeDueAtUae,
-  weekdayName,
-} from '../../lib/formatters';
-import {
-  ConfirmDialog,
-  EmptyState,
-  ErrorBanner,
-  Field,
-  Modal,
-  PageHeader,
-  SectionCard,
-  StatusBadge,
-  inputClass,
-  primaryBtnClass,
-  secondaryBtnClass,
-} from '../ui/Primitives';
+import type { CourseItem } from '../../types/api';
+import { asBoolean, formatIsoDateTimeUae } from '../../lib/formatters';
+import { ConfirmDialog, EmptyState, ErrorBanner, Field, Modal, SectionCard, StatusBadge, inputClass, primaryBtnClass, secondaryBtnClass } from '../ui/Primitives';
 
 export function LecturerWorkspace({ course, active }: { course: CourseItem; active: boolean }) {
-  const { executeAction, executeUpload, executeDownload } = useApp();
+  const { executeAction } = useApp();
   const [msgBody, setMsgBody] = useState('');
   const [msgBusy, setMsgBusy] = useState(false);
   const [msgError, setMsgError] = useState<string | null>(null);
